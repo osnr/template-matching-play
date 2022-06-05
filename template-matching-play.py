@@ -1,6 +1,9 @@
-from normxcorr2 import normxcorr2
 import numpy as np
+
 from scipy.signal import fftconvolve
+from normxcorr2 import normxcorr2
+from myfftconvolve import myfftconvolve
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import cv2 as cv
@@ -16,13 +19,8 @@ templ = plt.imread("template-traffic-lights.png")
 image = cv.resize(image, (0, 0), fx=0.5, fy=0.5)
 templ = cv.resize(templ, (0, 0), fx=0.5, fy=0.5)
 
-image = rgb2gray(image)
-templ = rgb2gray(templ)
-
-def t(f):
-    start_time = time.time()
-    f()
-    print("--- %s seconds ---" % (time.time() - start_time))
+# image = rgb2gray(image)
+# templ = rgb2gray(templ)
 
 def impl_cvMatchTemplate():
     return cv.matchTemplate(image, templ, cv.TM_CCOEFF_NORMED)
@@ -33,18 +31,19 @@ def impl_normxcorr2():
 def impl_normxcorr2_myfftconvolve():
     return normxcorr2(templ, image, fftconvolve=myfftconvolve, mode="same")
 
-print(res.shape)
-print(image.shape)
-print(templ.shape)
-print(nc.shape)
+def test(impl):
+    start_time = time.time()
+    result = impl()
+    print("%s [%s sec]" % (impl.__name__, time.time() - start_time))
+    peak = np.unravel_index(np.argmax(result), result.shape)
 
-peak = np.unravel_index(np.argmax(nc), nc.shape)
+    fig, ax = plt.subplots(1)
+    ax.imshow(result)
 
-fig, ax = plt.subplots(1)
-ax.imshow(nc)
+    rect = patches.Rectangle((peak[1] - templ.shape[1]/2, peak[0] - templ.shape[0]/2),
+                             templ.shape[1], templ.shape[0], linewidth=1,
+                             edgecolor='r', facecolor="none")
+    ax.add_patch(rect)
 
-rect = patches.Rectangle((peak[1] - templ.shape[1]/2, peak[0] - templ.shape[0]/2), templ.shape[1], templ.shape[0], linewidth=1,
-                         edgecolor='r', facecolor="none")
-ax.add_patch(rect)
-
+test(impl_cvMatchTemplate)
 plt.show()
