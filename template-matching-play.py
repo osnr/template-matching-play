@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 
 from normxcorr2 import normxcorr2
@@ -8,19 +9,32 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import cv2 as cv
 
+import sys
 import time
 
-def rgb2gray(rgb):
-    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+if len(sys.argv) == 1:
+    IMAGE_FILE, TEMPL_FILE = "screen.png", "template-traffic-lights.png"
+elif len(sys.argv) == 3:
+    IMAGE_FILE, TEMPL_FILE = sys.argv[1], sys.argv[2]
+else:
+    sys.stderr.write("%s IMAGE_FILE TEMPLATE_FILE\n" % (sys.argv[0]))
+    exit(1)
 
-image = plt.imread("screen.png")
-templ = plt.imread("template-traffic-lights.png")
+image = plt.imread(IMAGE_FILE)
+templ = plt.imread(TEMPL_FILE)
 
 image = cv.resize(image, (0, 0), fx=0.5, fy=0.5)
 templ = cv.resize(templ, (0, 0), fx=0.5, fy=0.5)
 
+def rgb2gray(rgb):
+    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+
 image = rgb2gray(image)
 templ = rgb2gray(templ)
+
+print("image", image.shape)
+print("templ", templ.shape)
+print()
 
 def impl_cvMatchTemplate():
     return cv.matchTemplate(np.float32(image), np.float32(templ), cv.TM_CCOEFF_NORMED)
@@ -63,5 +77,3 @@ run(impl_normxcorr2)
 run(impl_normxcorr2_myfftconvolve)
 
 done()
-
-
