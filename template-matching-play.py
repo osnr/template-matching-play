@@ -61,18 +61,17 @@ def run(impl):
 def done():
     fig, axs = plt.subplots(len(results), 2)
     for i, (impl_name, result, elapsed) in enumerate(results):
-        peak = np.unravel_index(np.argmax(result), result.shape)
-
-        axs[i, 0].set_title("%s [%.03f sec]" % (impl_name, elapsed))
         axs[i, 0].imshow(result)
-
         axs[i, 1].imshow(image)
 
-        rect = patches.Rectangle((peak[1] - templ.shape[1]/2, peak[0] - templ.shape[0]/2),
-                                 templ.shape[1], templ.shape[0],
-                                 linewidth=1, edgecolor='r', facecolor="none")
-        axs[i, 0].add_patch(copy(rect))
-        axs[i, 1].add_patch(copy(rect))
+        peaks = np.argwhere(result > 0.9)
+        axs[i, 0].set_title("%s [%d matches] [%.03f sec]" % (impl_name, len(peaks), elapsed))
+        for peak in peaks:
+            rect = patches.Rectangle((peak[1] - templ.shape[1]/2, peak[0] - templ.shape[0]/2),
+                                     templ.shape[1], templ.shape[0],
+                                     linewidth=1, edgecolor='r', facecolor="none")
+            axs[i, 0].add_patch(copy(rect))
+            axs[i, 1].add_patch(copy(rect))
 
     plt.tight_layout()
     plt.show()
