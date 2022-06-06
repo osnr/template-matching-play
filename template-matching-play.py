@@ -11,6 +11,7 @@ import cv2 as cv
 
 import sys
 import time
+from copy import copy
 
 if len(sys.argv) == 1:
     IMAGE_FILE, TEMPL_FILE = "screen.png", "template-traffic-lights.png"
@@ -64,10 +65,13 @@ def done():
         axs[i, 0].set_title("%s [%.03f sec]" % (impl_name, exec_time))
         axs[i, 0].imshow(result)
 
+        axs[i, 1].imshow(image)
+
         rect = patches.Rectangle((peak[1] - templ.shape[1]/2, peak[0] - templ.shape[0]/2),
                                  templ.shape[1], templ.shape[0],
                                  linewidth=1, edgecolor='r', facecolor="none")
-        axs[i, 0].add_patch(rect)
+        axs[i, 0].add_patch(copy(rect))
+        axs[i, 1].add_patch(copy(rect))
 
     plt.tight_layout()
     plt.show()
