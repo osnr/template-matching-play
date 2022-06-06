@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import numpy as np
 
 from normxcorr2 import normxcorr2
@@ -50,19 +51,19 @@ results = []
 def run(impl):
     start_time = time.time()
     result = impl()
-    exec_time = time.time() - start_time
-    print("%s [%s sec]" % (impl.__name__, exec_time))
+    elapsed = time.time() - start_time
+    print("%s [%s sec]" % (impl.__name__, elapsed))
     print(result.dtype, result.shape)
-    results.append((impl.__name__, result, exec_time))
+    results.append((impl.__name__, result, elapsed))
 
     print()
 
 def done():
     fig, axs = plt.subplots(len(results), 2)
-    for i, (impl_name, result, exec_time) in enumerate(results):
+    for i, (impl_name, result, elapsed) in enumerate(results):
         peak = np.unravel_index(np.argmax(result), result.shape)
 
-        axs[i, 0].set_title("%s [%.03f sec]" % (impl_name, exec_time))
+        axs[i, 0].set_title("%s [%.03f sec]" % (impl_name, elapsed))
         axs[i, 0].imshow(result)
 
         axs[i, 1].imshow(image)

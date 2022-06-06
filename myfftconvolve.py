@@ -1,20 +1,11 @@
 import numpy as np
 
-
-# from https://dsp.stackexchange.com/questions/63147/how-to-manually-implement-convolution-with-ffts
+# let's try reimplementing this
+# https://stackoverflow.com/questions/40703751/using-fourier-transforms-to-do-convolution
 def myfftconvolve(f, g, mode):
-    # Pad g to equal size of f. This assumes g is smaller in both dimensions
-    # and that the difference between f and g dimensions are even
-    p1, p2 = (np.r_[f.shape]-g.shape)/2
-
-    gpad = np.pad(g, ((np.int(np.floor(p1)), np.int(np.ceil(p1))),
-                      (np.int(np.floor(p2)), np.int(np.ceil(p2)))),
-                  mode='constant')
-
-    # Shift g to 'center' on top left corner (the 'origin' in an fft)
-    gpad = np.fft.ifftshift(gpad)
-
-    # Multiply spectra
-    FG = np.fft.fft2(f) * np.conj(np.fft.fft2(gpad))
-
+    size = np.array(f.shape) + np.array(g.shape) - 1
+    fsize = 2 ** np.ceil(np.log2(size)).astype(int)
+    f_ = np.fft.fft2(f, fsize)
+    g_ = np.fft.fft2(g, fsize)
+    FG = f_ * g_
     return np.real(np.fft.ifft2(FG))
