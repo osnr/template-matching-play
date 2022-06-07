@@ -16,6 +16,14 @@ image_t imageNewInShapeOf(image_t im) {
             .data = (float *) calloc(im.width * im.height, sizeof(float))
     };
 }
+void imageShow(const cv::String &winname, const image_t im) {
+    cv::Mat imageMat(im.height, im.width, CV_32F, im.data);
+    cv::imshow(winname, imageMat);
+    // std::cout << winname << std::endl;
+    // for (int i = 0; i < 100; i++) {
+    //     std::cout << im.data[i] << std::endl;
+    // }
+}
 
 float imageMean(const image_t im) {
     float ret;
@@ -79,10 +87,11 @@ image_t fftconvolve(image_t f, image_t g) {
     for (int y = 0; y < f.height; y++) {
         memcpy(&f_.realp[y * fwidth], &f.data[y * f.width], f.width * sizeof(float));
     }
-    FFTSetup fftSetup = vDSP_create_fftsetup(fwidth > fheight ? fwidth : fheight, kFFTRadix2);
+    FFTSetup fftSetup = vDSP_create_fftsetup(round(log2(fwidth > fheight ? fwidth : fheight)),
+                                             kFFTRadix2);
     vDSP_fft2d_zrip(fftSetup,
                     &f_, 1, 0,
-                    fwidth, fheight,
+                    round(log2(fwidth)), round(log2(fheight)),
                     kFFTDirection_Forward);
 
     // g_ = np.fft.fft2(g, fsize)
@@ -95,18 +104,21 @@ image_t fftconvolve(image_t f, image_t g) {
     }
     vDSP_fft2d_zrip(fftSetup,
                     &g_, 1, 0,
-                    fwidth, fheight,
+                    round(log2(fwidth)), round(log2(fheight)),
                     kFFTDirection_Forward);
 
     // FG = f_ * g_
-    DSPSplitComplex FG = f_; // reuse
+    DSPSplitComplex FG = (DSPSplitComplex) {
+        .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
+        .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
+    };
     vDSP_vmul(f_.realp, 1, g_.realp, 1, FG.realp, 1, fwidth * fheight);
     vDSP_vmul(f_.imagp, 1, g_.imagp, 1, FG.imagp, 1, fwidth * fheight);
 
     // return np.real(np.fft.ifft2(FG))
     vDSP_fft2d_zrip(fftSetup,
                     &FG, 1, 0,
-                    fwidth, fheight,
+                    round(log2(fwidth)), round(log2(fheight)),
                     kFFTDirection_Inverse);
     image_t ret = (image_t) {
         .width = fwidth,
@@ -114,6 +126,10 @@ image_t fftconvolve(image_t f, image_t g) {
         .data = FG.realp
     };
     return ret;
+}
+
+void printImageShape(image_t im) {
+    std::cout << im.width << "x" << im.height << std::endl;
 }
 
 image_t normxcorr2(image_t templ, image_t image) {
@@ -140,6 +156,7 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
+    imageShow("outi", outi);
     
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
@@ -152,7 +169,13 @@ image_t normxcorr2(image_t templ, image_t image) {
     
     // out = out / np.sqrt(image * template)
     imageMultiplyScalarInPlace(image, templateSum);
-    imageDivideImageInPlace(outi, imageSqrt(image));
+    image_t divisor = imageSqrt(image);
+    for (int y = 0; y < divisor.height; y++) {
+        vDSP_vdiv(&outi.data[y * outi.width], 1,
+                  &divisor.data[y * divisor.width], 1,
+                  &outi.data[y * outi.width], 1,
+                  divisor.width);
+    }
 
     // return out
     return outi;
@@ -181,4 +204,7 @@ int main() {
     image_t image = toImage(cv::imread("screen.png"));
 
     image_t result = normxcorr2(templ, image);
+    imageShow("result", result);
+
+    cv::waitKey(0);
 }
