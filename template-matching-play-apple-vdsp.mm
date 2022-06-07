@@ -16,9 +16,19 @@ image_t imageNewInShapeOf(image_t im) {
             .data = (float *) calloc(im.width * im.height, sizeof(float))
     };
 }
-void imageShow(const cv::String &winname, const image_t im) {
-    cv::Mat imageMat(im.height, im.width, CV_32F, im.data);
+
+
+void onMouse(int event, int x, int y, int, void* userdata) {
+    if (event != cv::EVENT_LBUTTONDOWN)
+        return;
+
+    image_t* im = (image_t *) userdata;
+    std::cout << "(" << x << "," << y << "): " << im->data[im->width * y + x] << std::endl;
+}
+void imageShow(const cv::String &winname, const image_t* im) {
+    cv::Mat imageMat(im->height, im->width, CV_32F, im->data);
     cv::imshow(winname, imageMat);
+    cv::setMouseCallback(winname, onMouse, (void *) im);
     // std::cout << winname << std::endl;
     // for (int i = 0; i < 100; i++) {
     //     std::cout << im.data[i] << std::endl;
@@ -156,7 +166,7 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
-    imageShow("outi", outi);
+    imageShow("outi", &outi);
     
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
@@ -204,7 +214,7 @@ int main() {
     image_t image = toImage(cv::imread("screen.png"));
 
     image_t result = normxcorr2(templ, image);
-    imageShow("result", result);
+    imageShow("result", &result);
 
     cv::waitKey(0);
 }
