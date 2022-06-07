@@ -37,6 +37,7 @@ void imageMultiplyScalarInPlace(image_t im, const float scalar) {
 void imageDivideScalarInPlace(image_t im, const float scalar) {
     vDSP_vsdiv(im.data, 1, &scalar, im.data, 1, im.width * im.height);
 }
+
 void imageSubtractImageInPlace(image_t im, const image_t subtrahend) {
     vDSP_vsub(im.data, 1, subtrahend.data, 1, im.data, 1, im.width * im.height);
 }
@@ -62,7 +63,57 @@ image_t imageSqrt(const image_t im) {
 }
 
 image_t fftconvolve(image_t f, image_t g) {
-    
+    // size = np.array(f.shape) + np.array(g.shape) - 1
+    int width = f.width + g.width - 1;
+    int height = f.height + g.height - 1;
+
+    // fsize = 2 ** np.ceil(np.log2(size)).astype(int)
+    int fwidth = 1 << (int) ceil(log2f(width));
+    int fheight = 1 << (int) ceil(log2f(height));
+
+    // f_ = np.fft.fft2(f, fsize)
+    DSPSplitComplex f_ = (DSPSplitComplex) {
+        .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
+        .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
+    };
+    for (int y = 0; y < f.height; y++) {
+        memcpy(&f_.realp[y * fwidth], &f.data[y * f.width], f.width * sizeof(float));
+    }
+    FFTSetup fftSetup = vDSP_create_fftsetup(fwidth > fheight ? fwidth : fheight, kFFTRadix2);
+    vDSP_fft2d_zrip(fftSetup,
+                    &f_, 1, 0,
+                    fwidth, fheight,
+                    kFFTDirection_Forward);
+
+    // g_ = np.fft.fft2(g, fsize)
+    DSPSplitComplex g_ = (DSPSplitComplex) {
+        .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
+        .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
+    };
+    for (int y = 0; y < g.height; y++) {
+        memcpy(&g_.realp[y * fwidth], &g.data[y * g.width], g.width * sizeof(float));
+    }
+    vDSP_fft2d_zrip(fftSetup,
+                    &g_, 1, 0,
+                    fwidth, fheight,
+                    kFFTDirection_Forward);
+
+    // FG = f_ * g_
+    DSPSplitComplex FG = f_; // reuse
+    vDSP_vmul(f_.realp, 1, g_.realp, 1, FG.realp, 1, fwidth * fheight);
+    vDSP_vmul(f_.imagp, 1, g_.imagp, 1, FG.imagp, 1, fwidth * fheight);
+
+    // return np.real(np.fft.ifft2(FG))
+    vDSP_fft2d_zrip(fftSetup,
+                    &FG, 1, 0,
+                    fwidth, fheight,
+                    kFFTDirection_Inverse);
+    image_t ret = (image_t) {
+        .width = fwidth,
+        .height = fheight,
+        .data = FG.realp
+    };
+    return ret;
 }
 
 image_t normxcorr2(image_t templ, image_t image) {
