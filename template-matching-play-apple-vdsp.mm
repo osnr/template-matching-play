@@ -157,3 +157,28 @@ image_t normxcorr2(image_t templ, image_t image) {
     // return out
     return outi;
 }
+
+image_t toImage(cv::Mat mat) {
+    image_t ret = (image_t) {
+        .width = mat.cols,
+        .height = mat.rows,
+        .data = (float *) malloc(mat.cols * mat.rows * sizeof(float))
+    };
+    for (int y = 0; y < ret.height; y++) {
+        for (int x = 0; x < ret.width; x++) {
+            int i = ((y * ret.width) + x) * 3;
+            uint8 r = mat.data[i];
+            uint8 g = mat.data[i + 1];
+            uint8 b = mat.data[i + 2];
+            ret.data[y * ret.width + x] = (r/255.0)*0.3 + (g/255.0)*0.58 + (b/255.0)*0.11;
+        }
+    }
+    return ret;
+}
+
+int main() {
+    image_t templ = toImage(cv::imread("template-traffic-lights.png"));
+    image_t image = toImage(cv::imread("screen.png"));
+
+    image_t result = normxcorr2(templ, image);
+}
