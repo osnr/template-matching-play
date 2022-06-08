@@ -87,7 +87,7 @@ image_t imageSqrt(const image_t im) {
     return ret;
 }
 
-image_t fftconvolve(image_t f, image_t g) {
+image_t fftconvolve(const image_t f, const image_t g) {
     // size = np.array(f.shape) + np.array(g.shape) - 1
     int width = f.width + g.width - 1;
     int height = f.height + g.height - 1;
@@ -195,12 +195,18 @@ image_t normxcorr2(image_t templ, image_t image) {
     imageDivideScalarInPlace(subtrahend, subtrahend.width * subtrahend.height);
     imageSubtractImageInPlace(imagen, subtrahend);
     
+    {
+        image_t *subtrahend_ = (image_t *) malloc(sizeof(subtrahend));
+        memcpy(subtrahend_, &subtrahend, sizeof(subtrahend));
+        imageShow("subtrahend", subtrahend_);
+    }
+    
     // template = np.sum(np.square(template))
     float templateSum = imageSumOfSquares(templ);
     
     // out = out / np.sqrt(image * template)
-    imageMultiplyScalarInPlace(image, templateSum);
-    image_t divisor = imageSqrt(image);
+    imageMultiplyScalarInPlace(imagen, templateSum);
+    image_t divisor = imageSqrt(imagen);
     for (int y = 0; y < divisor.height; y++) {
         vDSP_vdiv(&outi.data[y * outi.width], 1,
                   &divisor.data[y * divisor.width], 1,
