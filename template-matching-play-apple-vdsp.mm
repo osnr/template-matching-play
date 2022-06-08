@@ -25,7 +25,9 @@ void onMouse(int event, int x, int y, int, void* userdata) {
     image_t* im = (image_t *) userdata;
     std::cout << "(" << x << "," << y << "): " << im->data[im->width * y + x] << std::endl;
 }
-void imageShow(const cv::String &winname, const image_t* im) {
+void imageShow(const cv::String &winname, const image_t im_) {
+    image_t *im = (image_t *) malloc(sizeof(im));
+    memcpy(im, &im_, sizeof(im_));
     cv::Mat imageMat(im->height, im->width, CV_32F, im->data);
     cv::imshow(winname, imageMat);
     cv::setMouseCallback(winname, onMouse, (void *) im);
@@ -39,7 +41,7 @@ void dspImageShow(const cv::String &winname, const DSPSplitComplex spl, int widt
     im->width = width;
     im->height = height;
     im->data = spl.realp;
-    imageShow(winname, im);
+    imageShow(winname, *im);
 }
 
 float imageMean(const image_t im) {
@@ -192,15 +194,11 @@ image_t normxcorr2(image_t templ, image_t image) {
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
-    imageDivideScalarInPlace(subtrahend, subtrahend.width * subtrahend.height);
+    imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);
-    
-    {
-        image_t *subtrahend_ = (image_t *) malloc(sizeof(subtrahend));
-        memcpy(subtrahend_, &subtrahend, sizeof(subtrahend));
-        imageShow("subtrahend", subtrahend_);
-    }
-    
+    // why is imagen negative now???
+    imageShow("imagen", imagen);
+
     // template = np.sum(np.square(template))
     float templateSum = imageSumOfSquares(templ);
     
@@ -251,7 +249,7 @@ int main() {
         }
     }
     std::cout << "hits: " << hits << std::endl;
-    imageShow("result", &result);
+    imageShow("result", result);
 
     cv::waitKey(0);
 }
