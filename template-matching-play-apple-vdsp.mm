@@ -34,6 +34,13 @@ void imageShow(const cv::String &winname, const image_t* im) {
     //     std::cout << im.data[i] << std::endl;
     // }
 }
+void dspImageShow(const cv::String &winname, const DSPSplitComplex spl, int width, int height) {
+    image_t *im = (image_t *) malloc(sizeof(image_t));
+    im->width = width;
+    im->height = height;
+    im->data = spl.realp;
+    imageShow(winname, im);
+}
 
 float imageMean(const image_t im) {
     float ret;
@@ -86,8 +93,12 @@ image_t fftconvolve(image_t f, image_t g) {
     int height = f.height + g.height - 1;
 
     // fsize = 2 ** np.ceil(np.log2(size)).astype(int)
-    int fwidth = 1 << (int) ceil(log2f(width));
-    int fheight = 1 << (int) ceil(log2f(height));
+    int log2n0 = ceil(log2f(width));
+    int fwidth = 1 << (int) log2n0;
+    int log2n1 = ceil(log2f(height));
+    int fheight = 1 << (int) log2n1;
+    std::cout << "fwidth, fheight: " << fwidth << "," << fheight << std::endl;
+    std::cout << "log2n0, log2n1: " << log2n0 << "," << log2n1 << std::endl;
 
     // f_ = np.fft.fft2(f, fsize)
     DSPSplitComplex f_ = (DSPSplitComplex) {
@@ -97,12 +108,17 @@ image_t fftconvolve(image_t f, image_t g) {
     for (int y = 0; y < f.height; y++) {
         memcpy(&f_.realp[y * fwidth], &f.data[y * f.width], f.width * sizeof(float));
     }
-    FFTSetup fftSetup = vDSP_create_fftsetup(round(log2(fwidth > fheight ? fwidth : fheight)),
+    FFTSetup fftSetup = vDSP_create_fftsetup(log2n0 > log2n1 ? log2n0 : log2n1,
                                              kFFTRadix2);
-    vDSP_fft2d_zrip(fftSetup,
-                    &f_, 1, 0,
-                    round(log2(fwidth)), round(log2(fheight)),
-                    kFFTDirection_Forward);
+    vDSP_fft2d_zip(fftSetup,
+                   &f_, 1, 0,
+                   log2n0, log2n1,
+                   kFFTDirection_Forward); // why is it only half height? real vs complex
+    // vDSP_fft2d_zip(fftSetup,
+    //                 &f_, 1, 0,
+    //                 log2n0, log2n1,
+    //                 kFFTDirection_Inverse); // why is it only half height? real vs complex
+    dspImageShow("f__", f_, fwidth, fheight);
 
     // g_ = np.fft.fft2(g, fsize)
     DSPSplitComplex g_ = (DSPSplitComplex) {
@@ -112,9 +128,9 @@ image_t fftconvolve(image_t f, image_t g) {
     for (int y = 0; y < g.height; y++) {
         memcpy(&g_.realp[y * fwidth], &g.data[y * g.width], g.width * sizeof(float));
     }
-    vDSP_fft2d_zrip(fftSetup,
+    vDSP_fft2d_zip(fftSetup,
                     &g_, 1, 0,
-                    round(log2(fwidth)), round(log2(fheight)),
+                    log2n0, log2n1,
                     kFFTDirection_Forward);
 
     // FG = f_ * g_
@@ -126,15 +142,21 @@ image_t fftconvolve(image_t f, image_t g) {
     vDSP_vmul(f_.imagp, 1, g_.imagp, 1, FG.imagp, 1, fwidth * fheight);
 
     // return np.real(np.fft.ifft2(FG))
-    vDSP_fft2d_zrip(fftSetup,
+    vDSP_fft2d_zip(fftSetup,
                     &FG, 1, 0,
-                    round(log2(fwidth)), round(log2(fheight)),
+                    log2n0, log2n1,
                     kFFTDirection_Inverse);
     image_t ret = (image_t) {
-        .width = fwidth,
-        .height = fheight,
-        .data = FG.realp
+        .width = width,
+        .height = height,
+        .data = (float *) calloc(width * height, sizeof(float))
     };
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            memcpy(&ret.data[y * width], &FG.realp[y * fwidth], fwidth * sizeof(float));
+        }
+    }
+    imageDivideScalarInPlace(ret, fwidth * fheight); // ifft2 normalization
     return ret;
 }
 
@@ -166,7 +188,6 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
-    imageShow("outi", &outi);
     
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
@@ -212,8 +233,18 @@ image_t toImage(cv::Mat mat) {
 int main() {
     image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
+    // imageShow("image", &image);
 
     image_t result = normxcorr2(templ, image);
+    int hits = 0;
+    for (int y = 0; y < result.height; y++) {
+        for (int x = 0; x < result.width; x++) {
+            if (result.data[y * result.width + x] > 9e6) {
+                hits++;
+            }
+        }
+    }
+    std::cout << "hits: " << hits << std::endl;
     imageShow("result", &result);
 
     cv::waitKey(0);
