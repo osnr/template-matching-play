@@ -158,7 +158,7 @@ image_t fftconvolve(const image_t f, const image_t g) {
             memcpy(&ret.data[y * width], &FG.realp[y * fwidth], fwidth * sizeof(float));
         }
     }
-    imageDivideScalarInPlace(ret, fwidth * fheight); // ifft2 normalization
+    imageDivideScalarInPlace(ret, width * height); // ifft2 normalization
     return ret;
 }
 
@@ -187,14 +187,23 @@ image_t normxcorr2(image_t templ, image_t image) {
             ar.data[flippedY * templ.width + flippedX] = templ.data[y * templ.width + x];
         }
     }
+    printf("ar mean %f\n", imageMean(ar));
 
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
+    printf("out mean %f\n", imageMean(outi));
+    imageShow("outi", outi);
+
+    return outi;
+
+    // THIS CORRECTION BELOW IS WRONG
     
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
+    printf("imagen mean %f\n", imageMean(imagen));
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
+    printf("subtrahend mean %f\n", imageMean(subtrahend));
     imageSubtractImageInPlace(imagen, subtrahend);
     // why is imagen negative now???
     imageShow("imagen", imagen);
@@ -211,12 +220,16 @@ image_t normxcorr2(image_t templ, image_t image) {
                   &outi.data[y * outi.width], 1,
                   divisor.width);
     }
-
+    
     // return out
+    printf("out mean %f\n", imageMean(outi));
     return outi;
 }
 
-image_t toImage(cv::Mat mat) {
+image_t toImage(cv::Mat matOrig) {
+    cv::Mat mat;
+    cv::resize(matOrig, mat, cv::Size(), 0.5, 0.5);
+    
     image_t ret = (image_t) {
         .width = mat.cols,
         .height = mat.rows,
@@ -237,9 +250,23 @@ image_t toImage(cv::Mat mat) {
 int main() {
     image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
-    // imageShow("image", &image);
+    imageShow("image", image);
 
     image_t result = normxcorr2(templ, image);
+
+   int maxX, maxY;
+   float maxValue = -10000.0f;
+   for (int y = 0; y < result.height; y++) {
+       for (int x = 0; x < result.width; x++) {
+           if (result.data[y * result.width + x] > maxValue) {
+               maxX = x;
+               maxY = y;
+               maxValue = result.data[y * result.width + x];
+           }
+       }
+   }
+   printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
+
     int hits = 0;
     for (int y = 0; y < result.height; y++) {
         for (int x = 0; x < result.width; x++) {
@@ -250,6 +277,12 @@ int main() {
     }
     std::cout << "hits: " << hits << std::endl;
     imageShow("result", result);
+
+    cv::Mat orig = cv::imread("screen.png");
+    cv::Point origin(maxX*2, maxY*2);
+    cv::Point to((maxX + templ.width)*2, (maxY + templ.height)*2);
+    cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
+    cv::imshow("orig", orig);
 
     cv::waitKey(0);
 }
