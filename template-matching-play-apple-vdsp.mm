@@ -284,5 +284,5 @@ int main() {
     cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
     cv::imshow("orig", orig);
 
-    cv::waitKey(0);
+    while (cv::waitKey(0) != 27) {}
 }
