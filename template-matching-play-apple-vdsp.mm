@@ -201,8 +201,6 @@ image_t normxcorr2(image_t templ, image_t image) {
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);
 
-    // imagen is already off by 100x here. why?
-
     // image[np.where(image < 0)] = 0
     for (int y = 0; y < imagen.height; y++) {
         for (int x = 0; x < imagen.width; x++) {
@@ -256,59 +254,61 @@ image_t toImage(cv::Mat matOrig) {
     return ret;
 }
 
+// int main() {
+//     float inputData[] = {
+//         1, 2, 3,
+//         4, 5, 6,
+//         7, 8, 9
+//     };
+//     image_t input = (image_t) { .data = inputData, .width = 3, .height = 3 };
+//     float kernelData[] = {
+//         -1, -2, -1,
+//         0, 0, 0,
+//         1, 2, 1
+//     };
+//     image_t kernel = (image_t) { .data = kernelData, .width = 3, .height = 3 };
+
+//     image_t output = fftconvolve(input, kernel);
+//     imagePrint("output", output);
+// }
+
 int main() {
-    float inputData[] = {
-        1, 2, 3,
-        4, 5, 6,
-        7, 8, 9
-    };
-    image_t input = (image_t) { .data = inputData, .width = 3, .height = 3 };
-    float kernelData[] = {
-        -1, -2, -1,
-        0, 0, 0,
-        1, 2, 1
-    };
-    image_t kernel = (image_t) { .data = kernelData, .width = 3, .height = 3 };
-
-    image_t output = fftconvolve(input, kernel);
-    imagePrint("output", output);
-}
-
-int main2() {
-    image_t templ = toImage(cv::imread("template-string.png"));
+    image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
     imageShow("image", image);
 
     image_t result = normxcorr2(templ, image);
 
-    int maxX, maxY;
-   float maxValue = -10000.0f;
-   for (int y = 0; y < result.height; y++) {
-       for (int x = 0; x < result.width; x++) {
-           if (result.data[y * result.width + x] > maxValue) {
-               maxX = x;
-               maxY = y;
-               maxValue = result.data[y * result.width + x];
-           }
-       }
-   }
-   printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
+    //  int maxX, maxY;
+    // float maxValue = -10000.0f;
+    // for (int y = 0; y < result.height; y++) {
+    //     for (int x = 0; x < result.width; x++) {
+    //         if (result.data[y * result.width + x] > maxValue) {
+    //             maxX = x;
+    //             maxY = y;
+    //             maxValue = result.data[y * result.width + x];
+    //         }
+    //     }
+    // }
+    // printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
 
-    int hits = 0;
-    for (int y = 0; y < result.height; y++) {
-        for (int x = 0; x < result.width; x++) {
-            if (result.data[y * result.width + x] > 9e6) {
-                hits++;
-            }
-        }
-    }
-    std::cout << "hits: " << hits << std::endl;
     imageShow("result", result);
 
     cv::Mat orig = cv::imread("screen.png");
-    cv::Point origin((maxX - templ.width)*2, (maxY - templ.height)*2);
-    cv::Point to((maxX - templ.width + templ.width)*2, (maxY - templ.height + templ.height)*2);
-    cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
+    
+    int hits = 0;
+    for (int y = 0; y < result.height; y++) {
+        for (int x = 0; x < result.width; x++) {
+            if (result.data[y * result.width + x] > 0.98) {
+                hits++;
+                cv::Point origin((x - templ.width)*2, (y - templ.height)*2);
+                cv::Point to((x - templ.width + templ.width)*2, (y - templ.height + templ.height)*2);
+                cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
+            }
+        }
+    }
+
+    std::cout << "hits: " << hits << std::endl;
     cv::imshow("orig", orig);
 
     while (cv::waitKey(0) != 27) {}
