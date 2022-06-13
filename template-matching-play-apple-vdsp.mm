@@ -25,6 +25,15 @@ void onMouse(int event, int x, int y, int, void* userdata) {
     image_t* im = (image_t *) userdata;
     std::cout << "(" << x << "," << y << "): " << im->data[im->width * y + x] << std::endl;
 }
+void imagePrint(const char* name, const image_t im) {
+    printf("%s:\n", name);
+    for (int y = 0; y < im.height; y++) {
+        for (int x = 0; x < im.width; x++) {
+            printf("%.01f\t", im.data[y*im.width+x]);
+        }
+        printf("\n");
+    }
+}
 void imageShow(const cv::String &winname, const image_t im_) {
     image_t *im = (image_t *) malloc(sizeof(im));
     memcpy(im, &im_, sizeof(im_));
@@ -36,12 +45,15 @@ void imageShow(const cv::String &winname, const image_t im_) {
     //     std::cout << im.data[i] << std::endl;
     // }
 }
+image_t dspToImage(const DSPSplitComplex spl, int width, int height) {
+    image_t im;
+    im.width = width;
+    im.height = height;
+    im.data = spl.realp;
+    return im;
+}
 void dspImageShow(const cv::String &winname, const DSPSplitComplex spl, int width, int height) {
-    image_t *im = (image_t *) malloc(sizeof(image_t));
-    im->width = width;
-    im->height = height;
-    im->data = spl.realp;
-    imageShow(winname, *im);
+    imageShow(winname, dspToImage(spl, width, height));
 }
 
 float imageMean(const image_t im) {
@@ -99,8 +111,6 @@ image_t fftconvolve(const image_t f, const image_t g) {
     int fwidth = 1 << (int) log2n0;
     int log2n1 = ceil(log2f(height));
     int fheight = 1 << (int) log2n1;
-    std::cout << "fwidth, fheight: " << fwidth << "," << fheight << std::endl;
-    std::cout << "log2n0, log2n1: " << log2n0 << "," << log2n1 << std::endl;
 
     // f_ = np.fft.fft2(f, fsize)
     DSPSplitComplex f_ = (DSPSplitComplex) {
@@ -115,13 +125,7 @@ image_t fftconvolve(const image_t f, const image_t g) {
     vDSP_fft2d_zip(fftSetup,
                    &f_, 1, 0,
                    log2n0, log2n1,
-                   kFFTDirection_Forward); // why is it only half height? real vs complex
-    // vDSP_fft2d_zip(fftSetup,
-    //                 &f_, 1, 0,
-    //                 log2n0, log2n1,
-    //                 kFFTDirection_Inverse); // why is it only half height? real vs complex
-    dspImageShow("f__", f_, fwidth, fheight);
-
+                   kFFTDirection_Forward);
     // g_ = np.fft.fft2(g, fsize)
     DSPSplitComplex g_ = (DSPSplitComplex) {
         .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
@@ -197,6 +201,8 @@ image_t normxcorr2(image_t templ, image_t image) {
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);
 
+    // imagen is already off by 100x here. why?
+
     // image[np.where(image < 0)] = 0
     for (int y = 0; y < imagen.height; y++) {
         for (int x = 0; x < imagen.width; x++) {
@@ -220,7 +226,7 @@ image_t normxcorr2(image_t templ, image_t image) {
         for (int x = 0; x < outi.width; x++) {
             int i = y * outi.width + x;
             if (isinf(outi.data[i]) || isnan(outi.data[i])) {
-                outi.data[i] = 0;
+                outi.data[i] = 0.0f;
             }
         }
     }
@@ -251,7 +257,25 @@ image_t toImage(cv::Mat matOrig) {
 }
 
 int main() {
-    image_t templ = toImage(cv::imread("template-traffic-lights.png"));
+    float inputData[] = {
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9
+    };
+    image_t input = (image_t) { .data = inputData, .width = 3, .height = 3 };
+    float kernelData[] = {
+        -1, -2, -1,
+        0, 0, 0,
+        1, 2, 1
+    };
+    image_t kernel = (image_t) { .data = kernelData, .width = 3, .height = 3 };
+
+    image_t output = fftconvolve(input, kernel);
+    imagePrint("output", output);
+}
+
+int main2() {
+    image_t templ = toImage(cv::imread("template-string.png"));
     image_t image = toImage(cv::imread("screen.png"));
     imageShow("image", image);
 
@@ -288,4 +312,6 @@ int main() {
     cv::imshow("orig", orig);
 
     while (cv::waitKey(0) != 27) {}
+
+    return 0;
 }
