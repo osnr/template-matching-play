@@ -66,7 +66,7 @@ void imageDivideScalarInPlace(image_t im, const float scalar) {
 }
 
 void imageSubtractImageInPlace(image_t im, const image_t subtrahend) {
-    vDSP_vsub(im.data, 1, subtrahend.data, 1, im.data, 1, im.width * im.height);
+    vDSP_vsub(subtrahend.data, 1, im.data, 1, im.data, 1, im.width * im.height);
 }
 void imageDivideImageInPlace(image_t im, const image_t divisor) {
     vDSP_vdiv(im.data, 1, divisor.data, 1, im.data, 1, im.width * im.height);
@@ -191,38 +191,51 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
-    printf("out mean %f\n", imageMean(outi));
+    printf("outi immediate mean %f\n", imageMean(outi));
     imageShow("outi", outi);
 
-    return outi;
+    // return outi; // this works(??)
 
     // THIS CORRECTION BELOW IS WRONG
     
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
-    printf("imagen mean %f\n", imageMean(imagen));
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
-    printf("subtrahend mean %f\n", imageMean(subtrahend));
+    printf("imagen mean %f; subtrahend mean %f\n", imageMean(imagen), imageMean(subtrahend));
     imageSubtractImageInPlace(imagen, subtrahend);
-    // why is imagen negative now???
-    imageShow("imagen", imagen);
+    printf("imagen-subtrahend mean %f\n", imageMean(imagen));
+
+    // image[np.where(image < 0)] = 0
+    for (int y = 0; y < imagen.height; y++) {
+        for (int x = 0; x < imagen.width; x++) {
+            int i = y * imagen.width + x;
+            if (imagen.data[i] < 0) {
+                imagen.data[i] = 0;
+            }
+        }
+    }
 
     // template = np.sum(np.square(template))
-    float templateSum = imageSumOfSquares(templ);
+    float templateSum = imageSumOfSquares(templ); // Good
     
     // out = out / np.sqrt(image * template)
     imageMultiplyScalarInPlace(imagen, templateSum);
     image_t divisor = imageSqrt(imagen);
-    for (int y = 0; y < divisor.height; y++) {
-        vDSP_vdiv(&outi.data[y * outi.width], 1,
-                  &divisor.data[y * divisor.width], 1,
-                  &outi.data[y * outi.width], 1,
-                  divisor.width);
+    printf("divisor mean %f\n", imageMean(divisor));
+    imageDivideImageInPlace(outi, divisor);
+
+    // out[np.where(np.logical_not(np.isfinite(out)))] = 0
+    for (int y = 0; y < outi.height; y++) {
+        for (int x = 0; x < outi.width; x++) {
+            int i = y * outi.width + x;
+            if (outi.data[i] != outi.data[i]) {
+                outi.data[i] = 0;
+            }
+        }
     }
     
     // return out
-    printf("out mean %f\n", imageMean(outi));
     return outi;
 }
 
@@ -248,7 +261,7 @@ image_t toImage(cv::Mat matOrig) {
 }
 
 int main() {
-    image_t templ = toImage(cv::imread("template-traffic-lights.png"));
+    image_t templ = toImage(cv::imread("template-string.png"));
     image_t image = toImage(cv::imread("screen.png"));
     imageShow("image", image);
 
@@ -279,8 +292,8 @@ int main() {
     imageShow("result", result);
 
     cv::Mat orig = cv::imread("screen.png");
-    cv::Point origin(maxX*2, maxY*2);
-    cv::Point to((maxX + templ.width)*2, (maxY + templ.height)*2);
+    cv::Point origin((maxX - templ.width)*2, (maxY - templ.height)*2);
+    cv::Point to((maxX - templ.width + templ.width)*2, (maxY - templ.height + templ.height)*2);
     cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
     cv::imshow("orig", orig);
 
