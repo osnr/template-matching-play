@@ -126,6 +126,7 @@ image_t fftconvolve(const image_t f, const image_t g) {
                    &f_, 1, 0,
                    log2n0, log2n1,
                    kFFTDirection_Forward);
+
     // g_ = np.fft.fft2(g, fsize)
     DSPSplitComplex g_ = (DSPSplitComplex) {
         .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
@@ -144,8 +145,7 @@ image_t fftconvolve(const image_t f, const image_t g) {
         .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
         .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
     };
-    vDSP_vmul(f_.realp, 1, g_.realp, 1, FG.realp, 1, fwidth * fheight);
-    vDSP_vmul(f_.imagp, 1, g_.imagp, 1, FG.imagp, 1, fwidth * fheight);
+    vDSP_zvmul(&f_, 1, &g_, 1, &FG, 1, fwidth * fheight, 1);
 
     // return np.real(np.fft.ifft2(FG))
     vDSP_fft2d_zip(fftSetup,
@@ -162,7 +162,7 @@ image_t fftconvolve(const image_t f, const image_t g) {
             memcpy(&ret.data[y * width], &FG.realp[y * fwidth], fwidth * sizeof(float));
         }
     }
-    imageDivideScalarInPlace(ret, width * height); // ifft2 normalization
+    imageDivideScalarInPlace(ret, fwidth * fheight); // ifft2 normalization
     return ret;
 }
 
