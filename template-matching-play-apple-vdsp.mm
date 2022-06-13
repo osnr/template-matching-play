@@ -157,11 +157,7 @@ image_t fftconvolve(const image_t f, const image_t g) {
         .height = height,
         .data = (float *) calloc(width * height, sizeof(float))
     };
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            memcpy(&ret.data[y * width], &FG.realp[y * fwidth], fwidth * sizeof(float));
-        }
-    }
+    vDSP_mmov(FG.realp, ret.data, width, height, fwidth, width);
     imageDivideScalarInPlace(ret, fwidth * fheight); // ifft2 normalization
     return ret;
 }
@@ -275,9 +271,12 @@ image_t toImage(cv::Mat matOrig) {
 int main() {
     image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
-    imageShow("image", image);
 
+    cv::TickMeter tm;
+    tm.start();
     image_t result = normxcorr2(templ, image);
+    tm.stop();
+    std::cout << "Total time: " << tm.getTimeSec() << std::endl;
 
     //  int maxX, maxY;
     // float maxValue = -10000.0f;
@@ -292,7 +291,7 @@ int main() {
     // }
     // printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
 
-    imageShow("result", result);
+    // imageShow("result", result);
 
     cv::Mat orig = cv::imread("screen.png");
     
@@ -309,9 +308,9 @@ int main() {
     }
 
     std::cout << "hits: " << hits << std::endl;
-    cv::imshow("orig", orig);
+    // cv::imshow("orig", orig);
 
-    while (cv::waitKey(0) != 27) {}
+    // while (cv::waitKey(0) != 27) {}
 
     return 0;
 }
