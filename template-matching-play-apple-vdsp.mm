@@ -69,7 +69,7 @@ void imageSubtractImageInPlace(image_t im, const image_t subtrahend) {
     vDSP_vsub(subtrahend.data, 1, im.data, 1, im.data, 1, im.width * im.height);
 }
 void imageDivideImageInPlace(image_t im, const image_t divisor) {
-    vDSP_vdiv(im.data, 1, divisor.data, 1, im.data, 1, im.width * im.height);
+    vDSP_vdiv(divisor.data, 1, im.data, 1, im.data, 1, im.width * im.height);
 }
 
 image_t imageSquare(const image_t im) {
@@ -187,24 +187,15 @@ image_t normxcorr2(image_t templ, image_t image) {
             ar.data[flippedY * templ.width + flippedX] = templ.data[y * templ.width + x];
         }
     }
-    printf("ar mean %f\n", imageMean(ar));
 
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
-    printf("outi immediate mean %f\n", imageMean(outi));
-    imageShow("outi", outi);
 
-    // return outi; // this works(??)
-
-    // THIS CORRECTION BELOW IS WRONG
-    
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
-    printf("imagen mean %f; subtrahend mean %f\n", imageMean(imagen), imageMean(subtrahend));
     imageSubtractImageInPlace(imagen, subtrahend);
-    printf("imagen-subtrahend mean %f\n", imageMean(imagen));
 
     // image[np.where(image < 0)] = 0
     for (int y = 0; y < imagen.height; y++) {
@@ -217,19 +208,18 @@ image_t normxcorr2(image_t templ, image_t image) {
     }
 
     // template = np.sum(np.square(template))
-    float templateSum = imageSumOfSquares(templ); // Good
+    float templateSum = imageSumOfSquares(templ);
     
     // out = out / np.sqrt(image * template)
     imageMultiplyScalarInPlace(imagen, templateSum);
     image_t divisor = imageSqrt(imagen);
-    printf("divisor mean %f\n", imageMean(divisor));
     imageDivideImageInPlace(outi, divisor);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
     for (int y = 0; y < outi.height; y++) {
         for (int x = 0; x < outi.width; x++) {
             int i = y * outi.width + x;
-            if (outi.data[i] != outi.data[i]) {
+            if (isinf(outi.data[i]) || isnan(outi.data[i])) {
                 outi.data[i] = 0;
             }
         }
@@ -261,13 +251,13 @@ image_t toImage(cv::Mat matOrig) {
 }
 
 int main() {
-    image_t templ = toImage(cv::imread("template-string.png"));
+    image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
     imageShow("image", image);
 
     image_t result = normxcorr2(templ, image);
 
-   int maxX, maxY;
+    int maxX, maxY;
    float maxValue = -10000.0f;
    for (int y = 0; y < result.height; y++) {
        for (int x = 0; x < result.width; x++) {
