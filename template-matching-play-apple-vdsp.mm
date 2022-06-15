@@ -112,44 +112,40 @@ image_t fftconvolve(const image_t f, const image_t g) {
     int log2n1 = ceil(log2f(height));
     int fheight = 1 << (int) log2n1;
 
-    // f__ = np.fft.fft2(f, fsize)
-    float* f_ = (float *) calloc(fwidth * fheight, sizeof(float));
-    vDSP_mmov(f.data, f_, f.width, f.height, f.width, fwidth); // pad f
-    
-    DSPSplitComplex f__ = (DSPSplitComplex) {
+    // f_ = np.fft.fft2(f, fsize)
+    DSPSplitComplex f_ = (DSPSplitComplex) {
         .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
         .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
     };
-    vDSP_ctoz((DSPComplex *) f_, 2, &f__, 1, (fwidth / 2) * fheight);
-
+    for (int y = 0; y < f.height; y++) {
+        memcpy(&f_.realp[y * fwidth], &f.data[y * f.width], f.width * sizeof(float));
+    }
     FFTSetup fftSetup = vDSP_create_fftsetup(log2n0 > log2n1 ? log2n0 : log2n1,
                                              kFFTRadix2);
-    vDSP_fft2d_zrip(fftSetup,
-                    &f__, 1, 0,
-                    log2n0, log2n1,
-                    kFFTDirection_Forward);
+    vDSP_fft2d_zip(fftSetup,
+                   &f_, 1, 0,
+                   log2n0, log2n1,
+                   kFFTDirection_Forward);
 
-    // g__ = np.fft.fft2(g, fsize)
-    float* g_ = (float *) calloc(fwidth * fheight, sizeof(float));
-    vDSP_mmov(g.data, g_, g.width, g.height, g.width, fwidth); // pad g
-
-    DSPSplitComplex g__ = (DSPSplitComplex) {
+    // g_ = np.fft.fft2(g, fsize)
+    DSPSplitComplex g_ = (DSPSplitComplex) {
         .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
         .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
     };
-    vDSP_ctoz((DSPComplex *) g_, 2, &g__, 1, (fwidth / 2) * fheight);
-
-    vDSP_fft2d_zrip(fftSetup,
-                    &g__, 1, 0,
+    for (int y = 0; y < g.height; y++) {
+        memcpy(&g_.realp[y * fwidth], &g.data[y * g.width], g.width * sizeof(float));
+    }
+    vDSP_fft2d_zip(fftSetup,
+                    &g_, 1, 0,
                     log2n0, log2n1,
                     kFFTDirection_Forward);
 
-    // FG = f__ * g__
+    // FG = f_ * g_
     DSPSplitComplex FG = (DSPSplitComplex) {
         .realp = (float *) calloc(fwidth * fheight, sizeof(float)),
         .imagp = (float *) calloc(fwidth * fheight, sizeof(float))
     };
-    vDSP_zvmul(&f__, 1, &g__, 1, &FG, 1, fwidth * fheight, 1);
+    vDSP_zvmul(&f_, 1, &g_, 1, &FG, 1, fwidth * fheight, 1);
 
     // return np.real(np.fft.ifft2(FG))
     vDSP_fft2d_zip(fftSetup,
@@ -254,25 +250,25 @@ image_t toImage(cv::Mat matOrig) {
     return ret;
 }
 
+// int main() {
+//     float inputData[] = {
+//         1, 2, 3,
+//         4, 5, 6,
+//         7, 8, 9
+//     };
+//     image_t input = (image_t) { .data = inputData, .width = 3, .height = 3 };
+//     float kernelData[] = {
+//         -1, -2, -1,
+//         0, 0, 0,
+//         1, 2, 1
+//     };
+//     image_t kernel = (image_t) { .data = kernelData, .width = 3, .height = 3 };
+
+//     image_t output = fftconvolve(input, kernel);
+//     imagePrint("output", output);
+// }
+
 int main() {
-    float inputData[] = {
-        1, 2, 3,
-        4, 5, 6,
-        7, 8, 9
-    };
-    image_t input = (image_t) { .data = inputData, .width = 3, .height = 3 };
-    float kernelData[] = {
-        -1, -2, -1,
-        0, 0, 0,
-        1, 2, 1
-    };
-    image_t kernel = (image_t) { .data = kernelData, .width = 3, .height = 3 };
-
-    image_t output = fftconvolve(input, kernel);
-    imagePrint("output", output);
-}
-
-int main0() {
     image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
 
