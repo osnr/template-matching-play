@@ -3,6 +3,7 @@
 import numpy as np
 
 from normxcorr2 import normxcorr2
+from normxcorr2_fewer_ffts import normxcorr2_fewer_ffts
 from scipy.signal import fftconvolve
 from myfftconvolve import myfftconvolve
 
@@ -44,6 +45,9 @@ def impl_cvMatchTemplate():
 def impl_normxcorr2():
     return normxcorr2(templ, image, fftconvolve=fftconvolve, mode="same")
 
+def impl_normxcorr2_fewer_ffts():
+    return normxcorr2_fewer_ffts(templ, image, mode="same")
+
 def impl_normxcorr2_myfftconvolve():
     return normxcorr2(templ, image, fftconvolve=myfftconvolve, mode="same")
 
@@ -78,6 +82,7 @@ def done():
 
 run(impl_cvMatchTemplate)
 run(impl_normxcorr2)
+run(impl_normxcorr2_fewer_ffts)
 run(impl_normxcorr2_myfftconvolve)
 
 done()
