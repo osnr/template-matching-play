@@ -10,6 +10,7 @@ from myfftconvolve import myfftconvolve
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import cv2 as cv
+from skimage_template import match_template
 
 import sys
 import time
@@ -41,6 +42,9 @@ print()
 
 def impl_cvMatchTemplate():
     return cv.matchTemplate(np.float32(image), np.float32(templ), cv.TM_CCOEFF_NORMED)
+
+def impl_skimage():
+    return match_template(np.float32(image), np.float32(templ))
 
 def impl_normxcorr2():
     return normxcorr2(templ, image, fftconvolve=fftconvolve, mode="same")
@@ -81,8 +85,9 @@ def done():
     plt.show()
 
 run(impl_cvMatchTemplate)
+run(impl_skimage)
 run(impl_normxcorr2)
-run(impl_normxcorr2_fewer_ffts)
+# run(impl_normxcorr2_fewer_ffts)
 run(impl_normxcorr2_myfftconvolve)
 
 done()
