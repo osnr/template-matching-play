@@ -87,7 +87,7 @@ def done():
 run(impl_cvMatchTemplate)
 run(impl_skimage)
 run(impl_normxcorr2)
-# run(impl_normxcorr2_fewer_ffts)
+run(impl_normxcorr2_fewer_ffts)
 run(impl_normxcorr2_myfftconvolve)
 
 done()

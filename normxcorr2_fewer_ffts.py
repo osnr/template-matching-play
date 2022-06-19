@@ -1,5 +1,5 @@
 ########################################################################################
-# modified by Omar Rizwan (2022) to add fftconvolve function parameter                 #
+# modified by Omar Rizwan (2022) to add fftconvolve function parameter, reduce use of fftconvolve #
 #                                                                                      #
 # Author: Ujash Joshi, University of Toronto, 2017                                     #
 # Based on Octave implementation by: Benjamin Eltzner, 2014 <b.eltzner@gmx.de>         #
@@ -12,6 +12,18 @@
 
 import numpy as np
 from scipy.signal import fftconvolve
+
+def lsum(image, window_shape):
+
+    window_sum = np.cumsum(image, axis=0)
+    window_sum = (window_sum[window_shape[0]:-1]
+                  - window_sum[:-window_shape[0] - 1])
+
+    window_sum = np.cumsum(window_sum, axis=1)
+    window_sum = (window_sum[:, window_shape[1]:-1]
+                  - window_sum[:, :-window_shape[1] - 1])
+
+    return window_sum
 
 
 def normxcorr2_fewer_ffts(template, image, mode="full"):
@@ -37,13 +49,26 @@ def normxcorr2_fewer_ffts(template, image, mode="full"):
     template = template - np.mean(template)
     image = image - np.mean(image)
 
-    a1 = np.ones(template.shape)
     # Faster to flip up down and left right then use fftconvolve instead of scipy's correlate
     ar = np.flipud(np.fliplr(template))
     out = fftconvolve(image, ar.conj(), mode=mode)
-    
-    image = fftconvolve(np.square(image), a1, mode=mode) - \
-            np.square(fftconvolve(image, a1, mode=mode)) / (np.prod(template.shape))
+
+
+    # FIXME: instead of the below, use numpy csum
+    if True:
+        a1 = np.ones(template.shape)
+        minuend = fftconvolve(np.square(image), a1, mode=mode)
+        subtrahend = np.square(fftconvolve(image, a1, mode=mode)) / np.prod(template.shape)
+        print('minuend', minuend.shape)
+        print('subtrahend', subtrahend.shape)
+        # image = minuend - subtrahend
+
+    if True:
+        minuend2 = lsum(np.square(image), template.shape)
+        subtrahend2 = np.square(lsum(image, template.shape)) / np.prod(template.shape)
+        print('minuend2', minuend2.shape)
+        print('subtrahend2', subtrahend2.shape)
+        image = minuend2 - subtrahend2
 
     # Remove small machine precision errors after subtraction
     image[np.where(image < 0)] = 0
