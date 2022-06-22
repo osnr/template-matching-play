@@ -46,6 +46,9 @@ def normxcorr2_fewer_ffts(template, image, mode="full"):
             len([i for i in range(np.ndim(template)) if template.shape[i] > image.shape[i]]) > 0:
         print("normxcorr2: TEMPLATE larger than IMG. Arguments may be swapped.")
 
+    print('image shape', image.shape)
+    print('template shape', template.shape)
+
     template = template - np.mean(template)
     image = image - np.mean(image)
 
@@ -73,8 +76,9 @@ def normxcorr2_fewer_ffts(template, image, mode="full"):
     # Remove small machine precision errors after subtraction
     image[np.where(image < 0)] = 0
 
-    template = np.sum(np.square(template))
-    out = out / np.sqrt(image * template)
+    templateSum = np.sum(np.square(template))
+    print("image shape", image.shape)
+    out = out / np.pad(np.sqrt(image * templateSum), ((template.shape[0] + 1, 0), (template.shape[1] + 1, 0)), 'edge')
 
     # Remove any divisions by 0 or very close to 0
     out[np.where(np.logical_not(np.isfinite(out)))] = 0
