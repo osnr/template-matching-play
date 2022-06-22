@@ -26,9 +26,9 @@ void onMouse(int event, int x, int y, int, void* userdata) {
     std::cout << "(" << x << "," << y << "): " << im->data[im->width * y + x] << std::endl;
 }
 void imagePrint(const char* name, const image_t im) {
-    printf("%s:\n", name);
-    for (int y = 0; y < im.height; y++) {
-        for (int x = 0; x < im.width; x++) {
+    printf("%s [%dx%d]:\n", name, im.width, im.height);
+    for (int y = 0; y < 10; y++) {
+        for (int x = 0; x < 10; x++) {
             printf("%.01f\t", im.data[y*im.width+x]);
         }
         printf("\n");
@@ -193,6 +193,7 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     image_t imagen = fftconvolve(imageSquare(image), a1);
+    imagePrint("imagen", imagen);
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);
