@@ -135,6 +135,7 @@ def match_template(image, template, pad_input=False, mode='constant',
     # computation of integral images
     if image.ndim == 2:
         image_window_sum = _window_sum_2d(image, template.shape)
+        print("image_window_sum", image_window_sum.shape, "\n", image_window_sum)
         image_window_sum2 = _window_sum_2d(image ** 2, template.shape)
     elif image.ndim == 3:
         image_window_sum = _window_sum_3d(image, template.shape)

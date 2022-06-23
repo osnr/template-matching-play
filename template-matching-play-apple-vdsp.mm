@@ -27,8 +27,23 @@ void onMouse(int event, int x, int y, int, void* userdata) {
 }
 void imagePrint(const char* name, const image_t im) {
     printf("%s [%dx%d]:\n", name, im.width, im.height);
-    for (int y = 0; y < 10; y++) {
-        for (int x = 0; x < 10; x++) {
+    for (int y = 0; y < 5; y++) {
+        for (int x = 0; x < 5; x++) {
+            printf("%.01f\t", im.data[y*im.width+x]);
+        }
+        printf("...\t");
+        for (int x = im.width - 5; x < im.width; x++) {
+            printf("%.01f\t", im.data[y*im.width+x]);
+        }
+        printf("\n");
+    }
+    printf("...\n");
+    for (int y = im.height - 5; y < im.height; y++) {
+        for (int x = 0; x < 5; x++) {
+            printf("%.01f\t", im.data[y*im.width+x]);
+        }
+        printf("...\t");
+        for (int x = im.width - 5; x < im.width; x++) {
             printf("%.01f\t", im.data[y*im.width+x]);
         }
         printf("\n");
