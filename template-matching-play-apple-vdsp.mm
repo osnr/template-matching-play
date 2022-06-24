@@ -29,22 +29,22 @@ void imagePrint(const char* name, const image_t im) {
     printf("%s [%dx%d]:\n", name, im.width, im.height);
     for (int y = 0; y < 5; y++) {
         for (int x = 0; x < 5; x++) {
-            printf("%.01f\t", im.data[y*im.width+x]);
+            printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("...\t");
         for (int x = im.width - 5; x < im.width; x++) {
-            printf("%.01f\t", im.data[y*im.width+x]);
+            printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("\n");
     }
     printf("...\n");
     for (int y = im.height - 5; y < im.height; y++) {
         for (int x = 0; x < 5; x++) {
-            printf("%.01f\t", im.data[y*im.width+x]);
+            printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("...\t");
         for (int x = im.width - 5; x < im.width; x++) {
-            printf("%.01f\t", im.data[y*im.width+x]);
+            printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("\n");
     }
@@ -182,6 +182,8 @@ void printImageShape(image_t im) {
 }
 
 image_t normxcorr2(image_t templ, image_t image) {
+    imagePrint("image", image);
+    
     // template = template - np.mean(template)
     imageAddScalarInPlace(templ, -1 * imageMean(templ));
 
@@ -207,8 +209,9 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t outi = fftconvolve(image, ar);
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
+    imagePrint("image", image);
     image_t imagen = fftconvolve(imageSquare(image), a1);
-    imagePrint("imagen", imagen);
+    imagePrint("fftconvolve(imageSquare(image - mean(image)), a1)", imagen);
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);

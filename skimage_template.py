@@ -124,19 +124,21 @@ def match_template(image, template, pad_input=False, mode='constant',
     float_dtype = image.dtype # _supported_float_type(image.dtype)
     image = image.astype(float_dtype, copy=False)
 
-    pad_width = tuple((width, width) for width in template.shape)
-    if mode == 'constant':
-        image = np.pad(image, pad_width=pad_width, mode=mode,
-                       constant_values=constant_values)
-    else:
-        image = np.pad(image, pad_width=pad_width, mode=mode)
+    # pad_width = tuple((width, width) for width in template.shape)
+    # if mode == 'constant':
+    #     image = np.pad(image, pad_width=pad_width, mode=mode,
+    #                    constant_values=constant_values)
+    # else:
+    #     image = np.pad(image, pad_width=pad_width, mode=mode)
 
     # Use special case for 2-D images for much better performance in
     # computation of integral images
     if image.ndim == 2:
         image_window_sum = _window_sum_2d(image, template.shape)
-        print("image_window_sum", image_window_sum.shape, "\n", image_window_sum)
         image_window_sum2 = _window_sum_2d(image ** 2, template.shape)
+        np.set_printoptions(precision=2, suppress=True)
+        print("image", image)
+        print("something", "\n", _window_sum_2d((image - np.mean(image)) ** 2, template.shape))
     elif image.ndim == 3:
         image_window_sum = _window_sum_3d(image, template.shape)
         image_window_sum2 = _window_sum_3d(image ** 2, template.shape)
