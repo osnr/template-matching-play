@@ -27,23 +27,25 @@ void onMouse(int event, int x, int y, int, void* userdata) {
 }
 void imagePrint(const char* name, const image_t im) {
     printf("%s [%dx%d]:\n", name, im.width, im.height);
-    for (int y = 0; y < 5; y++) {
-        for (int x = 0; x < 5; x++) {
+    int x0 = 0; int x1 = im.width;
+    int y0 = 0; int y1 = im.height;
+    for (int y = y0; y < y0 + 5; y++) {
+        for (int x = x0; x < x0 + 5; x++) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("...\t");
-        for (int x = im.width - 5; x < im.width; x++) {
+        for (int x = x1 - 5; x < x1; x++) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("\n");
     }
     printf("...\n");
-    for (int y = im.height - 5; y < im.height; y++) {
-        for (int x = 0; x < 5; x++) {
+    for (int y = y1 - 5; y < y1; y++) {
+        for (int x = x0; x < x0 + 5; x++) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("...\t");
-        for (int x = im.width - 5; x < im.width; x++) {
+        for (int x = x1 - 5; x < x1; x++) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("\n");
@@ -209,7 +211,8 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t outi = fftconvolve(image, ar);
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
-    imagePrint("image", image);
+    imagePrint("image - mean(image)", image);
+    imagePrint("imageSquare(image - mean(image))", imageSquare(image));
     image_t imagen = fftconvolve(imageSquare(image), a1);
     imagePrint("fftconvolve(imageSquare(image - mean(image)), a1)", imagen);
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
