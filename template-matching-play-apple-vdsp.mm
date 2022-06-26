@@ -34,7 +34,7 @@ void imagePrint(const char* name, const image_t im) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("...\t");
-        for (int x = x1 - 5; x < x1; x++) {
+        for (int x = x1 - 10; x < x1; x++) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("\n");
@@ -45,7 +45,7 @@ void imagePrint(const char* name, const image_t im) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("...\t");
-        for (int x = x1 - 5; x < x1; x++) {
+        for (int x = x1 - 10; x < x1; x++) {
             printf("%.02f\t", im.data[y*im.width+x]);
         }
         printf("\n");
@@ -211,13 +211,43 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t outi = fftconvolve(image, ar);
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
-    imagePrint("image - mean(image)", image);
-    imagePrint("imageSquare(image - mean(image))", imageSquare(image));
+
+    // summed-area tables
+    image_t s = imageNewInShapeOf(image);
+    for (int y = 0; y < s.height; y++) {
+        for (int x = 0; x < s.width; x++) {
+            float sLeft = x > 0 ? s.data[y*image.width + (x - 1)] : 0;
+            float sUp = y > 0 ? s.data[(y - 1)*image.width + x] : 0;
+            float sUpLeft = (x > 0 && y > 0) ? s.data[(y - 1)*s.width + (x - 1)] : 0;
+            s.data[y*s.width + x] = image.data[y*image.width + x] + sLeft + sUp - sUpLeft;
+        }
+    }
+    image_t s2 = imageNewInShapeOf(image);
+    for (int y = 0; y < s2.height; y++) {
+        for (int x = 0; x < s2.width; x++) {
+            float s2Left = x > 0 ? s2.data[y*image.width + (x - 1)] : 0;
+            float s2Up = y > 0 ? s2.data[(y - 1)*image.width + x] : 0;
+            float s2UpLeft = (x > 0 && y > 0) ? s2.data[(y - 1)*s2.width + (x - 1)] : 0;
+            s2.data[y*s2.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2Left + s2Up - s2UpLeft;
+        }
+    }
+    image_t denom = imageNewInShapeOf(image);
+    for (int y = 0; y < denom.height; y++) {
+        for (int x = 0; x < denom.width; x++) {
+            denom.data[y*denom.width + x] = s2.data[y*s2.width + x] - 1.0f/(templ.width * templ.height) * s.data[y*s.width + x] * s.data[y*s.width + x];
+        }
+    }
+    imagePrint("denom", denom);
+    
+    // imagePrint("image - mean(image)", image);
+    // imagePrint("imageSquare(image - mean(image))", imageSquare(image));
     image_t imagen = fftconvolve(imageSquare(image), a1);
     imagePrint("fftconvolve(imageSquare(image - mean(image)), a1)", imagen);
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);
+
+    
 
     // image[np.where(image < 0)] = 0
     for (int y = 0; y < imagen.height; y++) {
@@ -235,6 +265,7 @@ image_t normxcorr2(image_t templ, image_t image) {
     // out = out / np.sqrt(image * template)
     imageMultiplyScalarInPlace(imagen, templateSum);
     image_t divisor = imageSqrt(imagen);
+    imagePrint("divisor", divisor);
     imageDivideImageInPlace(outi, divisor);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
