@@ -231,13 +231,6 @@ image_t normxcorr2(image_t templ, image_t image) {
             s2.data[y*s2.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2Left + s2Up - s2UpLeft;
         }
     }
-    image_t denom = imageNewInShapeOf(image);
-    for (int y = 0; y < denom.height; y++) {
-        for (int x = 0; x < denom.width; x++) {
-            denom.data[y*denom.width + x] = s2.data[y*s2.width + x] - 1.0f/(templ.width * templ.height) * s.data[y*s.width + x] * s.data[y*s.width + x];
-        }
-    }
-    imagePrint("denom", denom);
     
     // imagePrint("image - mean(image)", image);
     // imagePrint("imageSquare(image - mean(image))", imageSquare(image));
@@ -267,6 +260,16 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t divisor = imageSqrt(imagen);
     imagePrint("divisor", divisor);
     imageDivideImageInPlace(outi, divisor);
+
+    image_t denom = imageNewInShapeOf(image);
+    for (int y = 0; y < denom.height; y++) {
+        for (int x = 0; x < denom.width; x++) {
+            float d = s2.data[y*s2.width + x] - 1.0f/(templ.width * templ.height) * s.data[y*s.width + x] * s.data[y*s.width + x];
+            if (d < 0) d = 0;
+            denom.data[y*denom.width + x] = sqrt(templateSum * d);
+        }
+    }
+    imagePrint("denom", denom);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
     for (int y = 0; y < outi.height; y++) {
