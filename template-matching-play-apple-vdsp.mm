@@ -30,26 +30,27 @@ void imagePrint(const char* name, const image_t im) {
     int x0 = 0; int x1 = im.width;
     int y0 = 0; int y1 = im.height;
     for (int y = y0; y < y0 + 5; y++) {
-        for (int x = x0; x < x0 + 5; x++) {
-            printf("%.02f\t", im.data[y*im.width+x]);
+        for (int x = x0; x < x0 + 100; x++) {
+            printf("%05.02f(%d)\t", im.data[y*im.width+x], x);
         }
         printf("...\t");
-        for (int x = x1 - 10; x < x1; x++) {
-            printf("%.02f\t", im.data[y*im.width+x]);
+        for (int x = x1 - 5; x < x1; x++) {
+            printf("%05.02f(%d)\t", im.data[y*im.width+x], x);
         }
         printf("\n");
     }
     printf("...\n");
     for (int y = y1 - 5; y < y1; y++) {
-        for (int x = x0; x < x0 + 5; x++) {
-            printf("%.02f\t", im.data[y*im.width+x]);
+        for (int x = x0; x < x0 + 100; x++) {
+            printf("%05.02f(%d)\t", im.data[y*im.width+x], x);
         }
         printf("...\t");
-        for (int x = x1 - 10; x < x1; x++) {
-            printf("%.02f\t", im.data[y*im.width+x]);
+        for (int x = x1 - 5; x < x1; x++) {
+            printf("%05.02f(%d)\t", im.data[y*im.width+x], x);
         }
         printf("\n");
     }
+    printf("\n");
 }
 void imageShow(const cv::String &winname, const image_t im_) {
     image_t *im = (image_t *) malloc(sizeof(im));
@@ -183,6 +184,9 @@ void printImageShape(image_t im) {
     std::cout << im.width << "x" << im.height << std::endl;
 }
 
+#define s_(x, y) (((x) < 0 || (y) < 0) ? 0 : s.data[((y)*s.width) + (x)])
+#define s2_(x, y) (((x) < 0 || (y) < 0) ? 0 : s2.data[((y)*s2.width) + (x)])
+
 image_t normxcorr2(image_t templ, image_t image) {
     imagePrint("image", image);
     
@@ -216,19 +220,13 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t s = imageNewInShapeOf(image);
     for (int y = 0; y < s.height; y++) {
         for (int x = 0; x < s.width; x++) {
-            float sLeft = x > 0 ? s.data[y*image.width + (x - 1)] : 0;
-            float sUp = y > 0 ? s.data[(y - 1)*image.width + x] : 0;
-            float sUpLeft = (x > 0 && y > 0) ? s.data[(y - 1)*s.width + (x - 1)] : 0;
-            s.data[y*s.width + x] = image.data[y*image.width + x] + sLeft + sUp - sUpLeft;
+            s.data[y*s.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
         }
     }
     image_t s2 = imageNewInShapeOf(image);
     for (int y = 0; y < s2.height; y++) {
         for (int x = 0; x < s2.width; x++) {
-            float s2Left = x > 0 ? s2.data[y*image.width + (x - 1)] : 0;
-            float s2Up = y > 0 ? s2.data[(y - 1)*image.width + x] : 0;
-            float s2UpLeft = (x > 0 && y > 0) ? s2.data[(y - 1)*s2.width + (x - 1)] : 0;
-            s2.data[y*s2.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2Left + s2Up - s2UpLeft;
+            s2.data[y*s2.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
         }
     }
     
@@ -264,7 +262,13 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t denom = imageNewInShapeOf(image);
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
+            float energy = s2_(x + templ.width - 1, y + templ.height - 1)
+                - s2_(x - 1, y + templ.height - 1)
+                - s2_(x + templ.width - 1, y - 1)
+                + s2_(x - 1, y - 1);
+            
             float d = s2.data[y*s2.width + x] - 1.0f/(templ.width * templ.height) * s.data[y*s.width + x] * s.data[y*s.width + x];
+            // float d = energy;
             if (d < 0) d = 0;
             denom.data[y*denom.width + x] = sqrt(templateSum * d);
         }
