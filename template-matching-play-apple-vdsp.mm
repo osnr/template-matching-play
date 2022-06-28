@@ -262,15 +262,20 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t denom = imageNewInShapeOf(image);
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
+
+            float imageSum = s_(x + templ.width - 1, y + templ.height - 1)
+                - s_(x - 1, y + templ.height - 1)
+                - s_(x + templ.width - 1, y - 1)
+                + s_(x - 1, y - 1);
+
             float energy = s2_(x + templ.width - 1, y + templ.height - 1)
                 - s2_(x - 1, y + templ.height - 1)
                 - s2_(x + templ.width - 1, y - 1)
                 + s2_(x - 1, y - 1);
-            
-            float d = s2.data[y*s2.width + x] - 1.0f/(templ.width * templ.height) * s.data[y*s.width + x] * s.data[y*s.width + x];
-            // float d = energy;
+
+            float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
             if (d < 0) d = 0;
-            denom.data[y*denom.width + x] = sqrt(templateSum * d);
+            denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
     imagePrint("denom", denom);
