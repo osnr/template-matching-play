@@ -94,6 +94,12 @@ void imageMultiplyScalarInPlace(image_t im, const float scalar) {
 void imageDivideScalarInPlace(image_t im, const float scalar) {
     vDSP_vsdiv(im.data, 1, &scalar, im.data, 1, im.width * im.height);
 }
+image_t imageDivideScalar(image_t im, const float scalar) {
+    image_t ret = imageNewInShapeOf(im);
+    memcpy(ret.data, im.data, ret.width * ret.height * sizeof(float));
+    imageDivideScalarInPlace(ret, scalar);
+    return ret;
+}
 
 void imageSubtractImageInPlace(image_t im, const image_t subtrahend) {
     vDSP_vsub(subtrahend.data, 1, im.data, 1, im.data, 1, im.width * im.height);
@@ -184,8 +190,8 @@ void printImageShape(image_t im) {
     std::cout << im.width << "x" << im.height << std::endl;
 }
 
-#define s_(x, y) (((x) < 0 || (y) < 0) ? 0 : s.data[((y)*s.width) + (x)])
-#define s2_(x, y) (((x) < 0 || (y) < 0) ? 0 : s2.data[((y)*s2.width) + (x)])
+#define s_(x, y) (((x) < 0 || (y) < 0 || (x >= s.width) || (y >= s.height)) ? 0 : s.data[((y)*s.width) + (x)])
+#define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= s2.width) || (y >= s2.height)) ? 0 : s2.data[((y)*s2.width) + (x)])
 
 image_t normxcorr2(image_t templ, image_t image) {
     imagePrint("image", image);
@@ -268,18 +274,36 @@ image_t normxcorr2(image_t templ, image_t image) {
                 - s_(x + templ.width - 1, y - 1)
                 + s_(x - 1, y - 1);
 
+                imageSum = 0;
+                for (int xx = 0; xx < templ.width; xx++) {
+                    for (int yy = 0; yy < templ.height; yy++) {
+                        if ((x + xx) > image.width || (y + yy > image.height)) { continue; }
+                        imageSum += image.data[(y + yy)*image.width + (x + xx)];
+                    }
+                }
+
             float energy = s2_(x + templ.width - 1, y + templ.height - 1)
                 - s2_(x - 1, y + templ.height - 1)
                 - s2_(x + templ.width - 1, y - 1)
                 + s2_(x - 1, y - 1);
 
+                energy = 0;
+                for (int xx = 0; xx < templ.width; xx++) {
+                    for (int yy = 0; yy < templ.height; yy++) {
+                        if ((x + xx) > image.width || (y + yy > image.height)) { continue; }
+                        energy += image.data[(y + yy)*image.width + (x + xx)]*image.data[(y + yy)*image.width + (x + xx)];
+                    }
+                }
+            
             float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
             if (d < 0) d = 0;
             denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
-    imageShow("divisor", divisor);
-    imageShow("denom", denom);
+    imageShow("divisor", imageDivideScalar(divisor, imageMean(divisor)));
+    imageShow("s", imageDivideScalar(s, imageMean(s)));
+    imageShow("s2", imageDivideScalar(s2, imageMean(s2)));
+    imageShow("denom", imageDivideScalar(denom, imageMean(denom)));
 
     printf("divisor[1000][1000] = %f\ndenom[1000][1000] = %f\n", divisor.data[1000 * divisor.width + 1000], denom.data[1000 * denom.width + 1000]);
 
