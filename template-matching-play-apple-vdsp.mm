@@ -190,8 +190,8 @@ void printImageShape(image_t im) {
     std::cout << im.width << "x" << im.height << std::endl;
 }
 
-#define s_(x, y) (((x) < 0 || (y) < 0 || (x >= s.width) || (y >= s.height)) ? 0 : s.data[((y)*s.width) + (x)])
-#define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= s2.width) || (y >= s2.height)) ? 0 : s2.data[((y)*s2.width) + (x)])
+#define s_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s[((y)*image.width) + (x)])
+#define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s2[((y)*image.width) + (x)])
 
 image_t normxcorr2(image_t templ, image_t image) {
     imagePrint("image", image);
@@ -201,6 +201,7 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // image = image - np.mean(image)
     imageAddScalarInPlace(image, -1 * imageMean(image));
+    imageShow("image - mean", image);
 
     // a1 = np.ones(template.shape)
     image_t a1 = imageNewInShapeOf(templ);
@@ -223,16 +224,16 @@ image_t normxcorr2(image_t templ, image_t image) {
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
 
     // summed-area tables
-    image_t s = imageNewInShapeOf(image);
-    for (int y = 0; y < s.height; y++) {
-        for (int x = 0; x < s.width; x++) {
-            s.data[y*s.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
+    double* s = (double*) calloc(image.width * image.height, sizeof(double));
+    for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+            s[y*image.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
         }
     }
-    image_t s2 = imageNewInShapeOf(image);
-    for (int y = 0; y < s2.height; y++) {
-        for (int x = 0; x < s2.width; x++) {
-            s2.data[y*s2.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
+    double* s2 = (double*) calloc(image.width * image.height, sizeof(double));
+    for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+            s2[y*image.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
         }
     }
     
@@ -243,6 +244,7 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t subtrahend = imageSquare(fftconvolve(image, a1));
     imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
     imageSubtractImageInPlace(imagen, subtrahend);
+    printf("imagen[0] = %f\n", imagen.data[0]);
 
     
 
@@ -266,6 +268,7 @@ image_t normxcorr2(image_t templ, image_t image) {
     imageDivideImageInPlace(outi, divisor);
 
     image_t denom = imageNewInShapeOf(image);
+    imagePrint("denom pre", denom);
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
 
@@ -274,36 +277,46 @@ image_t normxcorr2(image_t templ, image_t image) {
                 - s_(x + templ.width - 1, y - 1)
                 + s_(x - 1, y - 1);
 
-                imageSum = 0;
+                // printf("automatic image sum %f\n", imageSum);
+
+                float is = 0;
                 for (int xx = 0; xx < templ.width; xx++) {
                     for (int yy = 0; yy < templ.height; yy++) {
-                        if ((x + xx) > image.width || (y + yy > image.height)) { continue; }
-                        imageSum += image.data[(y + yy)*image.width + (x + xx)];
+                        if ((x + xx) >= image.width || (y + yy >= image.height)) { continue; }
+                        is += image.data[(y + yy)*image.width + (x + xx)];
                     }
                 }
+                if (x == 756 && y == 698) {
+                    printf("automatic image sum %f\n", imageSum);
+                    printf("manual image sum %f\n", is);
+                }
+                // if (abs(is - imageSum) > 0.1) {
+                //     // printf("is mismatch at (%d %d) %f %f\n", x, y, imageSum, is);
+                //     denom.data[y*denom.width + x] = 1;
+                //     continue;
+                // } else {
+                //     denom.data[y*denom.width + x] = 0;
+                //     continue;
+                // }
+                // printf("manual image sum %f\n", imageSum);
 
             float energy = s2_(x + templ.width - 1, y + templ.height - 1)
                 - s2_(x - 1, y + templ.height - 1)
                 - s2_(x + templ.width - 1, y - 1)
                 + s2_(x - 1, y - 1);
 
-                energy = 0;
-                for (int xx = 0; xx < templ.width; xx++) {
-                    for (int yy = 0; yy < templ.height; yy++) {
-                        if ((x + xx) > image.width || (y + yy > image.height)) { continue; }
-                        energy += image.data[(y + yy)*image.width + (x + xx)]*image.data[(y + yy)*image.width + (x + xx)];
-                    }
-                }
-            
             float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
             if (d < 0) d = 0;
             denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
-    imageShow("divisor", imageDivideScalar(divisor, imageMean(divisor)));
-    imageShow("s", imageDivideScalar(s, imageMean(s)));
-    imageShow("s2", imageDivideScalar(s2, imageMean(s2)));
-    imageShow("denom", imageDivideScalar(denom, imageMean(denom)));
+    imageShow("divisor norm", imageDivideScalar(divisor, imageMean(divisor)));
+    imageShow("divisor", divisor);
+    // imageShow("s", s);
+    // imageShow("s norm", imageDivideScalar(s, imageMean(s)));
+    // imageShow("s2", imageDivideScalar(s2, imageMean(s2)));
+    imageShow("denom", denom);
+    imageShow("denom norm", imageDivideScalar(denom, imageMean(denom)));
 
     printf("divisor[1000][1000] = %f\ndenom[1000][1000] = %f\n", divisor.data[1000 * divisor.width + 1000], denom.data[1000 * denom.width + 1000]);
 
