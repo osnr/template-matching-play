@@ -30,7 +30,7 @@ void imagePrint(const char* name, const image_t im) {
     int x0 = 0; int x1 = im.width;
     int y0 = 0; int y1 = im.height;
     for (int y = y0; y < y0 + 5; y++) {
-        for (int x = x0; x < x0 + 100; x++) {
+        for (int x = x0; x < x0 + 5; x++) {
             printf("%05.02f(%d)\t", im.data[y*im.width+x], x);
         }
         printf("...\t");
@@ -278,7 +278,10 @@ image_t normxcorr2(image_t templ, image_t image) {
             denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
-    imagePrint("denom", denom);
+    imageShow("divisor", divisor);
+    imageShow("denom", denom);
+
+    printf("divisor[1000][1000] = %f\ndenom[1000][1000] = %f\n", divisor.data[1000 * divisor.width + 1000], denom.data[1000 * denom.width + 1000]);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
     for (int y = 0; y < outi.height; y++) {
@@ -375,7 +378,7 @@ int main() {
     std::cout << "hits: " << hits << std::endl;
     // cv::imshow("orig", orig);
 
-    // while (cv::waitKey(0) != 27) {}
+    while (cv::waitKey(0) != 27) {}
 
     return 0;
 }
