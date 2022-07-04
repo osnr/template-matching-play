@@ -56,7 +56,7 @@ void imageShow(const cv::String &winname, const image_t im_) {
     image_t *im = (image_t *) malloc(sizeof(im));
     memcpy(im, &im_, sizeof(im_));
     cv::Mat imageMat(im->height, im->width, CV_32F, im->data);
-    cv::imshow(winname, imageMat);
+    cv::imshow(cv::format("%s (%dx%d)", winname.c_str(), im->width, im->height), imageMat);
     cv::setMouseCallback(winname, onMouse, (void *) im);
     // std::cout << winname << std::endl;
     // for (int i = 0; i < 100; i++) {
@@ -279,6 +279,7 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     imageShow("denom", denom);
     imageShow("denomOld", denomOld);
+    imageShow("outi", outi);
     imageDivideImageInPlace(outi, denomOld);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
