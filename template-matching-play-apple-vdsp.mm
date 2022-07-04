@@ -194,14 +194,11 @@ void printImageShape(image_t im) {
 #define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s2[((y)*image.width) + (x)])
 
 image_t normxcorr2(image_t templ, image_t image) {
-    imagePrint("image", image);
-    
     // template = template - np.mean(template)
     imageAddScalarInPlace(templ, -1 * imageMean(templ));
 
     // image = image - np.mean(image)
     imageAddScalarInPlace(image, -1 * imageMean(image));
-    imageShow("image - mean", image);
 
     // a1 = np.ones(template.shape)
     image_t a1 = imageNewInShapeOf(templ);
@@ -222,7 +219,6 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t outi = fftconvolve(image, ar);
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
-
     // summed-area tables
     double* s = (double*) calloc(image.width * image.height, sizeof(double));
     for (int y = 0; y < image.height; y++) {
@@ -237,68 +233,17 @@ image_t normxcorr2(image_t templ, image_t image) {
         }
     }
     
-    // imagePrint("image - mean(image)", image);
-    // imagePrint("imageSquare(image - mean(image))", imageSquare(image));
-    image_t imagen = fftconvolve(imageSquare(image), a1);
-    imagePrint("fftconvolve(imageSquare(image - mean(image)), a1)", imagen);
-    image_t subtrahend = imageSquare(fftconvolve(image, a1));
-    imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
-    imageSubtractImageInPlace(imagen, subtrahend);
-    printf("imagen[0] = %f\n", imagen.data[0]);
-
-    
-
     // image[np.where(image < 0)] = 0
-    for (int y = 0; y < imagen.height; y++) {
-        for (int x = 0; x < imagen.width; x++) {
-            int i = y * imagen.width + x;
-            if (imagen.data[i] < 0) {
-                imagen.data[i] = 0;
-            }
-        }
-    }
-
-    // template = np.sum(np.square(template))
-    float templateSum = imageSumOfSquares(templ);
-    
+    // template = np.sum(np.square(template))    
     // out = out / np.sqrt(image * template)
-    imageMultiplyScalarInPlace(imagen, templateSum);
-    image_t divisor = imageSqrt(imagen);
-    imagePrint("divisor", divisor);
-    imageDivideImageInPlace(outi, divisor);
-
-    image_t denom = imageNewInShapeOf(image);
-    imagePrint("denom pre", denom);
+    float templateSum = imageSumOfSquares(templ);
+    image_t denom = imageNewInShapeOf(image);    
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
-
             float imageSum = s_(x + templ.width - 1, y + templ.height - 1)
                 - s_(x - 1, y + templ.height - 1)
                 - s_(x + templ.width - 1, y - 1)
                 + s_(x - 1, y - 1);
-
-                // printf("automatic image sum %f\n", imageSum);
-
-                float is = 0;
-                for (int xx = 0; xx < templ.width; xx++) {
-                    for (int yy = 0; yy < templ.height; yy++) {
-                        if ((x + xx) >= image.width || (y + yy >= image.height)) { continue; }
-                        is += image.data[(y + yy)*image.width + (x + xx)];
-                    }
-                }
-                if (x == 756 && y == 698) {
-                    printf("automatic image sum %f\n", imageSum);
-                    printf("manual image sum %f\n", is);
-                }
-                // if (abs(is - imageSum) > 0.1) {
-                //     // printf("is mismatch at (%d %d) %f %f\n", x, y, imageSum, is);
-                //     denom.data[y*denom.width + x] = 1;
-                //     continue;
-                // } else {
-                //     denom.data[y*denom.width + x] = 0;
-                //     continue;
-                // }
-                // printf("manual image sum %f\n", imageSum);
 
             float energy = s2_(x + templ.width - 1, y + templ.height - 1)
                 - s2_(x - 1, y + templ.height - 1)
@@ -310,15 +255,7 @@ image_t normxcorr2(image_t templ, image_t image) {
             denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
-    imageShow("divisor norm", imageDivideScalar(divisor, imageMean(divisor)));
-    imageShow("divisor", divisor);
-    // imageShow("s", s);
-    // imageShow("s norm", imageDivideScalar(s, imageMean(s)));
-    // imageShow("s2", imageDivideScalar(s2, imageMean(s2)));
-    imageShow("denom", denom);
-    imageShow("denom norm", imageDivideScalar(denom, imageMean(denom)));
-
-    printf("divisor[1000][1000] = %f\ndenom[1000][1000] = %f\n", divisor.data[1000 * divisor.width + 1000], denom.data[1000 * denom.width + 1000]);
+    imageDivideImageInPlace(outi, denom);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
     for (int y = 0; y < outi.height; y++) {
@@ -373,6 +310,12 @@ image_t toImage(cv::Mat matOrig) {
 //     imagePrint("output", output);
 // }
 
+void hit(cv::Mat& orig, image_t templ, int x, int y) {
+    cv::Point origin((x - templ.width)*2, (y - templ.height)*2);
+    cv::Point to((x - templ.width + templ.width)*2, (y - templ.height + templ.height)*2);
+    cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
+}
+
 int main() {
     image_t templ = toImage(cv::imread("template-traffic-lights.png"));
     image_t image = toImage(cv::imread("screen.png"));
@@ -383,38 +326,40 @@ int main() {
     tm.stop();
     std::cout << "Total time: " << tm.getTimeSec() << std::endl;
 
-    //  int maxX, maxY;
-    // float maxValue = -10000.0f;
-    // for (int y = 0; y < result.height; y++) {
-    //     for (int x = 0; x < result.width; x++) {
-    //         if (result.data[y * result.width + x] > maxValue) {
-    //             maxX = x;
-    //             maxY = y;
-    //             maxValue = result.data[y * result.width + x];
-    //         }
-    //     }
-    // }
-    // printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
-
-    // imageShow("result", result);
-
     cv::Mat orig = cv::imread("screen.png");
     
-    int hits = 0;
-    for (int y = 0; y < result.height; y++) {
-        for (int x = 0; x < result.width; x++) {
-            if (result.data[y * result.width + x] > 0.98) {
-                hits++;
-                cv::Point origin((x - templ.width)*2, (y - templ.height)*2);
-                cv::Point to((x - templ.width + templ.width)*2, (y - templ.height + templ.height)*2);
-                cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
+    if (1) { // max-value strategy
+        int maxX, maxY;
+        float maxValue = -10000.0f;
+        for (int y = 0; y < result.height; y++) {
+            for (int x = 0; x < result.width; x++) {
+                if (result.data[y * result.width + x] > maxValue) {
+                    maxX = x;
+                    maxY = y;
+                    maxValue = result.data[y * result.width + x];
+                }
             }
         }
+        printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
+        hit(orig, templ, maxX, maxY);
+    }
+    imageShow("result", result);
+
+    if (0) { // threshold strategy
+        int hits = 0;
+        for (int y = 0; y < result.height; y++) {
+            for (int x = 0; x < result.width; x++) {
+                if (result.data[y * result.width + x] > 100.98) {
+                    hits++;
+                    hit(orig, templ, x, y);
+                }
+            }
+        }
+
+        std::cout << "hits: " << hits << std::endl;
     }
 
-    std::cout << "hits: " << hits << std::endl;
-    // cv::imshow("orig", orig);
-
+    cv::imshow("orig", orig);
     while (cv::waitKey(0) != 27) {}
 
     return 0;
