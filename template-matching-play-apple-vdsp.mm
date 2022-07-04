@@ -232,7 +232,7 @@ image_t normxcorr2(image_t templ, image_t image) {
             s2[y*image.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
         }
     }
-    
+
     // image[np.where(image < 0)] = 0
     // template = np.sum(np.square(template))    
     // out = out / np.sqrt(image * template)
@@ -255,7 +255,30 @@ image_t normxcorr2(image_t templ, image_t image) {
             denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
-    imageDivideImageInPlace(outi, denom);
+
+    image_t denomOld;
+    {
+        image_t imagen = fftconvolve(imageSquare(image), a1);
+        image_t subtrahend = imageSquare(fftconvolve(image, a1));
+        imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
+        imageSubtractImageInPlace(imagen, subtrahend);
+
+        // image[np.where(image < 0)] = 0
+        for (int y = 0; y < imagen.height; y++) {
+            for (int x = 0; x < imagen.width; x++) {
+                int i = y * imagen.width + x;
+                if (imagen.data[i] < 0) {
+                    imagen.data[i] = 0;
+                }
+            }
+        }
+
+        denomOld = imageSqrt(imagen);
+    }
+
+    imageShow("denom", denom);
+    imageShow("denomOld", denomOld);
+    imageDivideImageInPlace(outi, denomOld);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
     for (int y = 0; y < outi.height; y++) {
@@ -328,7 +351,7 @@ int main() {
 
     cv::Mat orig = cv::imread("screen.png");
     
-    if (1) { // max-value strategy
+    if (0) { // max-value strategy
         int maxX, maxY;
         float maxValue = -10000.0f;
         for (int y = 0; y < result.height; y++) {
@@ -345,11 +368,11 @@ int main() {
     }
     imageShow("result", result);
 
-    if (0) { // threshold strategy
+    if (1) { // threshold strategy
         int hits = 0;
         for (int y = 0; y < result.height; y++) {
             for (int x = 0; x < result.width; x++) {
-                if (result.data[y * result.width + x] > 100.98) {
+                if (result.data[y * result.width + x] > 0.98) {
                     hits++;
                     hit(orig, templ, x, y);
                 }
