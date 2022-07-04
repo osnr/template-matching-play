@@ -273,6 +273,7 @@ image_t normxcorr2(image_t templ, image_t image) {
             }
         }
 
+        imageMultiplyScalarInPlace(imagen, templateSum);
         denomOld = imageSqrt(imagen);
     }
 
