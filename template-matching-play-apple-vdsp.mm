@@ -4,6 +4,11 @@
 #import <Foundation/Foundation.h>
 #import <Accelerate/Accelerate.h>
 
+void fail(const char* s) {
+    fprintf(stderr, "fail: %s", s);
+    exit(1);
+}
+
 typedef struct image {
     int width;
     int height;
@@ -105,6 +110,9 @@ void imageSubtractImageInPlace(image_t im, const image_t subtrahend) {
     vDSP_vsub(subtrahend.data, 1, im.data, 1, im.data, 1, im.width * im.height);
 }
 void imageDivideImageInPlace(image_t im, const image_t divisor) {
+    if (divisor.width != im.width || divisor.height != im.height) {
+        fail("border mismatch");
+    }
     vDSP_vdiv(divisor.data, 1, im.data, 1, im.data, 1, im.width * im.height);
 }
 
@@ -237,7 +245,7 @@ image_t normxcorr2(image_t templ, image_t image) {
     // template = np.sum(np.square(template))    
     // out = out / np.sqrt(image * template)
     float templateSum = imageSumOfSquares(templ);
-    image_t denom = imageNewInShapeOf(image);    
+    image_t denom = imageNewInShapeOf(outi);    
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
             float imageSum = s_(x + templ.width - 1, y + templ.height - 1)
@@ -280,7 +288,7 @@ image_t normxcorr2(image_t templ, image_t image) {
     imageShow("denom", denom);
     imageShow("denomOld", denomOld);
     imageShow("outi", outi);
-    imageDivideImageInPlace(outi, denomOld);
+    imageDivideImageInPlace(outi, denom);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
     for (int y = 0; y < outi.height; y++) {
