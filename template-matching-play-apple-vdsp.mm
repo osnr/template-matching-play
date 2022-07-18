@@ -263,31 +263,6 @@ image_t normxcorr2(image_t templ, image_t image) {
             denom.data[y*denom.width + x] = sqrt(d * templateSum);
         }
     }
-
-    image_t denomOld;
-    {
-        image_t imagen = fftconvolve(imageSquare(image), a1);
-        image_t subtrahend = imageSquare(fftconvolve(image, a1));
-        imageDivideScalarInPlace(subtrahend, templ.width * templ.height);
-        imageSubtractImageInPlace(imagen, subtrahend);
-
-        // image[np.where(image < 0)] = 0
-        for (int y = 0; y < imagen.height; y++) {
-            for (int x = 0; x < imagen.width; x++) {
-                int i = y * imagen.width + x;
-                if (imagen.data[i] < 0) {
-                    imagen.data[i] = 0;
-                }
-            }
-        }
-
-        imageMultiplyScalarInPlace(imagen, templateSum);
-        denomOld = imageSqrt(imagen);
-    }
-
-    imageShow("denom", imageDivideScalar(denom, imageMean(denom)));
-    imageShow("denomOld", imageDivideScalar(denomOld, imageMean(denomOld)));
-    imageShow("outi", outi);
     imageDivideImageInPlace(outi, denom);
 
     // out[np.where(np.logical_not(np.isfinite(out)))] = 0
