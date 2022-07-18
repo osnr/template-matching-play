@@ -198,6 +198,7 @@ void printImageShape(image_t im) {
     std::cout << im.width << "x" << im.height << std::endl;
 }
 
+#define FIX 1000000.0f
 #define s_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s[((y)*image.width) + (x)])
 #define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s2[((y)*image.width) + (x)])
 
@@ -228,16 +229,16 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     // summed-area tables
-    double* s = (double*) calloc(image.width * image.height, sizeof(double));
+    long long *s = (long long*) calloc(image.width * image.height, sizeof(long long));
     for (int y = 0; y < image.height; y++) {
         for (int x = 0; x < image.width; x++) {
-            s[y*image.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
+            s[y*image.width + x] = (image.data[y*image.width + x]*FIX) + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
         }
     }
-    double* s2 = (double*) calloc(image.width * image.height, sizeof(double));
+    long long *s2 = (long long*) calloc(image.width * image.height, sizeof(long long));
     for (int y = 0; y < image.height; y++) {
         for (int x = 0; x < image.width; x++) {
-            s2[y*image.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
+            s2[y*image.width + x] = (image.data[y*image.width + x]*image.data[y*image.width + x]*FIX) + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
         }
     }
 
@@ -248,15 +249,17 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t denom = imageNewInShapeOf(outi);    
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
-            float imageSum = s_(x - 1, y - 1)
+            long long imageSumLL = s_(x - 1, y - 1)
                 - s_(x - templ.width - 1, y - 1)
                 - s_(x - 1, y - templ.height - 1)
                 + s_(x - templ.width - 1, y - templ.height - 1);
+            float imageSum = (float) imageSumLL / (float) FIX;
 
-            float energy = s2_(x - 1, y - 1)
+            long long energyLL = s2_(x - 1, y - 1)
                 - s2_(x - templ.width - 1, y - 1)
                 - s2_(x - 1, y - templ.height - 1)
                 + s2_(x - templ.width - 1, y - templ.height - 1);
+            float energy = (float) energyLL / (float) FIX;
 
             float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
             if (d < 0) d = 0;
@@ -285,8 +288,8 @@ image_t normxcorr2(image_t templ, image_t image) {
         denomOld = imageSqrt(imagen);
     }
 
-    imageShow("denom", denom);
-    imageShow("denomOld", denomOld);
+    imageShow("denom", imageDivideScalar(denom, imageMean(denom)));
+    imageShow("denomOld", imageDivideScalar(denomOld, imageMean(denomOld)));
     imageShow("outi", outi);
     imageDivideImageInPlace(outi, denom);
 
@@ -361,7 +364,7 @@ int main() {
 
     cv::Mat orig = cv::imread("screen.png");
     
-    if (0) { // max-value strategy
+    if (1) { // max-value strategy
         int maxX, maxY;
         float maxValue = -10000.0f;
         for (int y = 0; y < result.height; y++) {
@@ -378,11 +381,11 @@ int main() {
     }
     imageShow("result", result);
 
-    if (1) { // threshold strategy
+    if (0) { // threshold strategy
         int hits = 0;
         for (int y = 0; y < result.height; y++) {
             for (int x = 0; x < result.width; x++) {
-                if (result.data[y * result.width + x] > 0.98) {
+                if (result.data[y * result.width + x] > 0.99) {
                     hits++;
                     hit(orig, templ, x, y);
                 }
