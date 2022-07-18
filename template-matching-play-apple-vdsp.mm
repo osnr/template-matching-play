@@ -198,7 +198,6 @@ void printImageShape(image_t im) {
     std::cout << im.width << "x" << im.height << std::endl;
 }
 
-#define FIX 1000000.0
 #define s_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s[((y)*image.width) + (x)])
 #define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s2[((y)*image.width) + (x)])
 
@@ -229,16 +228,16 @@ image_t normxcorr2(image_t templ, image_t image) {
 
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     // summed-area tables
-    long long *s = (long long*) calloc(image.width * image.height, sizeof(long long));
+    double *s = (double*) calloc(image.width * image.height, sizeof(double));
     for (int y = 0; y < image.height; y++) {
         for (int x = 0; x < image.width; x++) {
-            s[y*image.width + x] = (image.data[y*image.width + x]*FIX) + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
+            s[y*image.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
         }
     }
-    long long *s2 = (long long*) calloc(image.width * image.height, sizeof(long long));
+    double *s2 = (double*) calloc(image.width * image.height, sizeof(double));
     for (int y = 0; y < image.height; y++) {
         for (int x = 0; x < image.width; x++) {
-            s2[y*image.width + x] = (image.data[y*image.width + x]*image.data[y*image.width + x]*FIX) + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
+            s2[y*image.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
         }
     }
 
@@ -249,17 +248,15 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t denom = imageNewInShapeOf(outi);    
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
-            long long imageSumLL = s_(x, y)
+            double imageSum = s_(x, y)
                 - s_(x - templ.width, y)
                 - s_(x, y - templ.height)
                 + s_(x - templ.width, y - templ.height);
-            float imageSum = (float) imageSumLL / (float) FIX;
 
-            long long energyLL = s2_(x, y)
+            double energy = s2_(x, y)
                 - s2_(x - templ.width, y)
                 - s2_(x, y - templ.height)
                 + s2_(x - templ.width, y - templ.height);
-            float energy = (float) energyLL / (float) FIX;
 
             float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
             if (d < 0) d = 0;
