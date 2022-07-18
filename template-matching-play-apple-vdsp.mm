@@ -198,7 +198,7 @@ void printImageShape(image_t im) {
     std::cout << im.width << "x" << im.height << std::endl;
 }
 
-#define FIX 1000000.0f
+#define FIX 1000000.0
 #define s_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s[((y)*image.width) + (x)])
 #define s2_(x, y) (((x) < 0 || (y) < 0 || (x >= image.width) || (y >= image.height)) ? 0 : s2[((y)*image.width) + (x)])
 
@@ -249,16 +249,16 @@ image_t normxcorr2(image_t templ, image_t image) {
     image_t denom = imageNewInShapeOf(outi);    
     for (int y = 0; y < denom.height; y++) {
         for (int x = 0; x < denom.width; x++) {
-            long long imageSumLL = s_(x - 1, y - 1)
-                - s_(x - templ.width - 1, y - 1)
-                - s_(x - 1, y - templ.height - 1)
-                + s_(x - templ.width - 1, y - templ.height - 1);
+            long long imageSumLL = s_(x, y)
+                - s_(x - templ.width, y)
+                - s_(x, y - templ.height)
+                + s_(x - templ.width, y - templ.height);
             float imageSum = (float) imageSumLL / (float) FIX;
 
-            long long energyLL = s2_(x - 1, y - 1)
-                - s2_(x - templ.width - 1, y - 1)
-                - s2_(x - 1, y - templ.height - 1)
-                + s2_(x - templ.width - 1, y - templ.height - 1);
+            long long energyLL = s2_(x, y)
+                - s2_(x - templ.width, y)
+                - s2_(x, y - templ.height)
+                + s2_(x - templ.width, y - templ.height);
             float energy = (float) energyLL / (float) FIX;
 
             float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
