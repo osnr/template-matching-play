@@ -361,7 +361,7 @@ int main() {
 
     cv::Mat orig = cv::imread("screen.png");
     
-    if (1) { // max-value strategy
+    if (0) { // max-value strategy
         int maxX, maxY;
         float maxValue = -10000.0f;
         for (int y = 0; y < result.height; y++) {
@@ -378,11 +378,11 @@ int main() {
     }
     imageShow("result", result);
 
-    if (0) { // threshold strategy
+    if (1) { // threshold strategy
         int hits = 0;
         for (int y = 0; y < result.height; y++) {
             for (int x = 0; x < result.width; x++) {
-                if (result.data[y * result.width + x] > 0.99) {
+                if (result.data[y * result.width + x] > 0.98) {
                     hits++;
                     hit(orig, templ, x, y);
                 }
