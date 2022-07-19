@@ -208,11 +208,6 @@ image_t normxcorr2(image_t templ, image_t image) {
     // image = image - np.mean(image)
     imageAddScalarInPlace(image, -1 * imageMean(image));
 
-    // a1 = np.ones(template.shape)
-    image_t a1 = imageNewInShapeOf(templ);
-    float one = 1.0f;
-    vDSP_vfill(&one, a1.data, 1, a1.width * a1.height);
-
     // ar = np.flipud(np.fliplr(template))
     image_t ar = imageNewInShapeOf(templ);
     for (int y = 0; y < templ.height; y++) {
@@ -226,17 +221,14 @@ image_t normxcorr2(image_t templ, image_t image) {
     // out = fftconvolve(image, ar.conj())
     image_t outi = fftconvolve(image, ar);
 
+    // a1 = np.ones(template.shape)
     // image = fftconvolve(np.square(image), a1) - np.square(fftconvolve(image, a1)) / np.prod(template.shape)
     // summed-area tables
     double *s = (double*) calloc(image.width * image.height, sizeof(double));
-    for (int y = 0; y < image.height; y++) {
-        for (int x = 0; x < image.width; x++) {
-            s[y*image.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
-        }
-    }
     double *s2 = (double*) calloc(image.width * image.height, sizeof(double));
     for (int y = 0; y < image.height; y++) {
         for (int x = 0; x < image.width; x++) {
+            s[y*image.width + x] = image.data[y*image.width + x] + s_(x-1, y) + s_(x, y-1) - s_(x-1, y-1);
             s2[y*image.width + x] = image.data[y*image.width + x]*image.data[y*image.width + x] + s2_(x-1, y) + s2_(x, y-1) - s2_(x-1, y-1);
         }
     }
@@ -245,43 +237,40 @@ image_t normxcorr2(image_t templ, image_t image) {
     // template = np.sum(np.square(template))    
     // out = out / np.sqrt(image * template)
     float templateSum = imageSumOfSquares(templ);
-    image_t denom = imageNewInShapeOf(outi);    
-    for (int y = 0; y < denom.height; y++) {
-        for (int x = 0; x < denom.width; x++) {
+    for (int y = 0; y < outi.height; y++) {
+        for (int x = 0; x < outi.width; x++) {
             double imageSum = s_(x, y)
                 - s_(x - templ.width, y)
                 - s_(x, y - templ.height)
                 + s_(x - templ.width, y - templ.height);
 
             double energy = s2_(x, y)
-                - s2_(x - templ.width, y)
+                - s2_(x - templ.width, y) 
                 - s2_(x, y - templ.height)
                 + s2_(x - templ.width, y - templ.height);
 
             float d = energy - 1.0f/(templ.width * templ.height) * imageSum * imageSum; // from Briechle (10)
             if (d < 0) d = 0;
-            denom.data[y*denom.width + x] = sqrt(d * templateSum);
-        }
-    }
-    imageDivideImageInPlace(outi, denom);
 
-    // out[np.where(np.logical_not(np.isfinite(out)))] = 0
-    for (int y = 0; y < outi.height; y++) {
-        for (int x = 0; x < outi.width; x++) {
             int i = y * outi.width + x;
+            outi.data[i] /= sqrt(d * templateSum);
+
+            // out[np.where(np.logical_not(np.isfinite(out)))] = 0
             if (isinf(outi.data[i]) || isnan(outi.data[i])) {
                 outi.data[i] = 0.0f;
             }
         }
     }
-    
+
     // return out
     return outi;
 }
 
+static const float MATCH_SCALE = 0.5f;
+
 image_t toImage(cv::Mat matOrig) {
     cv::Mat mat;
-    cv::resize(matOrig, mat, cv::Size(), 0.5, 0.5);
+    cv::resize(matOrig, mat, cv::Size(), MATCH_SCALE, MATCH_SCALE);
     
     image_t ret = (image_t) {
         .width = mat.cols,
@@ -319,8 +308,8 @@ image_t toImage(cv::Mat matOrig) {
 // }
 
 void hit(cv::Mat& orig, image_t templ, int x, int y) {
-    cv::Point origin((x - templ.width)*2, (y - templ.height)*2);
-    cv::Point to((x - templ.width + templ.width)*2, (y - templ.height + templ.height)*2);
+    cv::Point origin((x - templ.width)*(1/MATCH_SCALE), (y - templ.height)*(1/MATCH_SCALE));
+    cv::Point to((x - templ.width + templ.width)*(1/MATCH_SCALE), (y - templ.height + templ.height)*(1/MATCH_SCALE));
     cv::rectangle(orig, origin, to, cv::Scalar(255, 0, 255));
 }
 
@@ -351,13 +340,13 @@ int main() {
         printf("maxValue (%d, %d) = %f\n", maxX, maxY, maxValue);
         hit(orig, templ, maxX, maxY);
     }
-    imageShow("result", result);
+    // imageShow("result", result);
 
     if (1) { // threshold strategy
         int hits = 0;
         for (int y = 0; y < result.height; y++) {
             for (int x = 0; x < result.width; x++) {
-                if (result.data[y * result.width + x] > 0.98) {
+                if (result.data[y * result.width + x] > 0.9) {
                     hits++;
                     hit(orig, templ, x, y);
                 }
