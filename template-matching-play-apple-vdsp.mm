@@ -346,7 +346,7 @@ int main() {
         int hits = 0;
         for (int y = 0; y < result.height; y++) {
             for (int x = 0; x < result.width; x++) {
-                if (result.data[y * result.width + x] > 0.9) {
+                if (result.data[y * result.width + x] > 0.98) {
                     hits++;
                     hit(orig, templ, x, y);
                 }
