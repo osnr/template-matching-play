@@ -1,28 +1,9 @@
 # Author: Travis Oliphant
 # 1999 -- 2002
 
-from __future__ import annotations  # Provides typing union operator `|` in Python 3.9
-
 from scipy import fft as sp_fft
-from scipy.fft._helper import _init_nd_shape_and_axes
 import numpy as np
 
-
-
-__all__ = ['correlate', 'correlation_lags', 'correlate2d',
-           'convolve', 'convolve2d', 'fftconvolve', 'oaconvolve',
-           'order_filter', 'medfilt', 'medfilt2d', 'wiener', 'lfilter',
-           'lfiltic', 'sosfilt', 'deconvolve', 'hilbert', 'hilbert2', 'envelope',
-           'unique_roots', 'invres', 'invresz', 'residue',
-           'residuez', 'resample', 'resample_poly', 'detrend',
-           'lfilter_zi', 'sosfilt_zi', 'sosfiltfilt', 'choose_conv_method',
-           'filtfilt', 'decimate', 'vectorstrength']
-
-
-_modedict = {'valid': 0, 'same': 1, 'full': 2}
-
-_boundarydict = {'fill': 0, 'pad': 0, 'wrap': 2, 'circular': 2, 'symm': 1,
-                 'symmetric': 1, 'reflect': 4}
 
 def _centered(arr, newshape):
     # Return the center newshape portion of the array.
@@ -148,8 +129,14 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     ##############
 
     # Speed up FFT by padding to optimal size.
+    print("shape", shape)
     fshape = [
-        sp_fft.next_fast_len(shape[a], True) for a in axes]
+        # 2 ** np.ceil(np.log2(shape[0])).astype(int),
+        # 2 ** np.ceil(np.log2(shape[1])).astype(int)
+        sp_fft.next_fast_len(shape[0], True),
+        sp_fft.next_fast_len(shape[1], True)
+    ]
+    print(fshape)
 
     fft, ifft = sp_fft.rfftn, sp_fft.irfftn
 
