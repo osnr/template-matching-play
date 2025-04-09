@@ -24,58 +24,6 @@ _modedict = {'valid': 0, 'same': 1, 'full': 2}
 _boundarydict = {'fill': 0, 'pad': 0, 'wrap': 2, 'circular': 2, 'symm': 1,
                  'symmetric': 1, 'reflect': 4}
 
-
-def _valfrommode(mode):
-    try:
-        return _modedict[mode]
-    except KeyError as e:
-        raise ValueError("Acceptable mode flags are 'valid',"
-                         " 'same', or 'full'.") from e
-
-
-def _bvalfromboundary(boundary):
-    try:
-        return _boundarydict[boundary] << 2
-    except KeyError as e:
-        raise ValueError("Acceptable boundary flags are 'fill', 'circular' "
-                         "(or 'wrap'), and 'symmetric' (or 'symm').") from e
-
-
-def _inputs_swap_needed(mode, shape1, shape2, axes=None):
-    """Determine if inputs arrays need to be swapped in `"valid"` mode.
-
-    If in `"valid"` mode, returns whether or not the input arrays need to be
-    swapped depending on whether `shape1` is at least as large as `shape2` in
-    every calculated dimension.
-
-    This is important for some of the correlation and convolution
-    implementations in this module, where the larger array input needs to come
-    before the smaller array input when operating in this mode.
-
-    Note that if the mode provided is not 'valid', False is immediately
-    returned.
-
-    """
-    if mode != 'valid':
-        return False
-
-    if not shape1:
-        return False
-
-    if axes is None:
-        axes = range(len(shape1))
-
-    ok1 = all(shape1[i] >= shape2[i] for i in axes)
-    ok2 = all(shape2[i] >= shape1[i] for i in axes)
-
-    if not (ok1 or ok2):
-        raise ValueError("For 'valid' mode, one must be at least "
-                         "as large as the other in every dimension")
-
-    return not ok1
-
-
-
 def _centered(arr, newshape):
     # Return the center newshape portion of the array.
     newshape = np.asarray(newshape)
@@ -84,165 +32,6 @@ def _centered(arr, newshape):
     endind = startind + newshape
     myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
     return arr[tuple(myslice)]
-
-
-def _init_freq_conv_axes(in1, in2, mode, axes, sorted_axes=False):
-    """Handle the axes argument for frequency-domain convolution.
-
-    Returns the inputs and axes in a standard form, eliminating redundant axes,
-    swapping the inputs if necessary, and checking for various potential
-    errors.
-
-    Parameters
-    ----------
-    in1 : array
-        First input.
-    in2 : array
-        Second input.
-    mode : str {'full', 'valid', 'same'}, optional
-        A string indicating the size of the output.
-        See the documentation `fftconvolve` for more information.
-    axes : list of ints
-        Axes over which to compute the FFTs.
-    sorted_axes : bool, optional
-        If `True`, sort the axes.
-        Default is `False`, do not sort.
-
-    Returns
-    -------
-    in1 : array
-        The first input, possible swapped with the second input.
-    in2 : array
-        The second input, possible swapped with the first input.
-    axes : list of ints
-        Axes over which to compute the FFTs.
-
-    """
-    s1 = in1.shape
-    s2 = in2.shape
-    noaxes = axes is None
-
-    _, axes = _init_nd_shape_and_axes(in1, shape=None, axes=axes)
-
-    if not noaxes and not len(axes):
-        raise ValueError("when provided, axes cannot be empty")
-
-    # Axes of length 1 can rely on broadcasting rules for multiply,
-    # no fft needed.
-    axes = [a for a in axes if s1[a] != 1 and s2[a] != 1]
-
-    if sorted_axes:
-        axes.sort()
-
-    if not all(s1[a] == s2[a] or s1[a] == 1 or s2[a] == 1
-               for a in range(in1.ndim) if a not in axes):
-        raise ValueError("incompatible shapes for in1 and in2:"
-                         f" {s1} and {s2}")
-
-    # Check that input sizes are compatible with 'valid' mode.
-    if _inputs_swap_needed(mode, s1, s2, axes=axes):
-        # Convolution is commutative; order doesn't have any effect on output.
-        in1, in2 = in2, in1
-
-    return in1, in2, axes
-
-
-def _freq_domain_conv(in1, in2, axes, shape, calc_fast_len=False):
-    """Convolve two arrays in the frequency domain.
-
-    This function implements only base the FFT-related operations.
-    Specifically, it converts the signals to the frequency domain, multiplies
-    them, then converts them back to the time domain.  Calculations of axes,
-    shapes, convolution mode, etc. are implemented in higher level-functions,
-    such as `fftconvolve` and `oaconvolve`.  Those functions should be used
-    instead of this one.
-
-    Parameters
-    ----------
-    in1 : array_like
-        First input.
-    in2 : array_like
-        Second input. Should have the same number of dimensions as `in1`.
-    axes : array_like of ints
-        Axes over which to compute the FFTs.
-    shape : array_like of ints
-        The sizes of the FFTs.
-    calc_fast_len : bool, optional
-        If `True`, set each value of `shape` to the next fast FFT length.
-        Default is `False`, use `axes` as-is.
-
-    Returns
-    -------
-    out : array
-        An N-dimensional array containing the discrete linear convolution of
-        `in1` with `in2`.
-
-    """
-    if not len(axes):
-        return in1 * in2
-
-    complex_result = (in1.dtype.kind == 'c' or in2.dtype.kind == 'c')
-
-    if calc_fast_len:
-        # Speed up FFT by padding to optimal size.
-        fshape = [
-            sp_fft.next_fast_len(shape[a], not complex_result) for a in axes]
-    else:
-        fshape = shape
-
-    if not complex_result:
-        fft, ifft = sp_fft.rfftn, sp_fft.irfftn
-    else:
-        fft, ifft = sp_fft.fftn, sp_fft.ifftn
-
-    sp1 = fft(in1, fshape, axes=axes)
-    sp2 = fft(in2, fshape, axes=axes)
-
-    ret = ifft(sp1 * sp2, fshape, axes=axes)
-
-    if calc_fast_len:
-        fslice = tuple([slice(sz) for sz in shape])
-        ret = ret[fslice]
-
-    return ret
-
-
-def _apply_conv_mode(ret, s1, s2, mode, axes):
-    """Calculate the convolution result shape based on the `mode` argument.
-
-    Returns the result sliced to the correct size for the given mode.
-
-    Parameters
-    ----------
-    ret : array
-        The result array, with the appropriate shape for the 'full' mode.
-    s1 : list of int
-        The shape of the first input.
-    s2 : list of int
-        The shape of the second input.
-    mode : str {'full', 'valid', 'same'}
-        A string indicating the size of the output.
-        See the documentation `fftconvolve` for more information.
-    axes : list of ints
-        Axes over which to compute the convolution.
-
-    Returns
-    -------
-    ret : array
-        A copy of `res`, sliced to the correct size for the given `mode`.
-
-    """
-    if mode == "full":
-        return ret.copy()
-    elif mode == "same":
-        return _centered(ret, s1).copy()
-    elif mode == "valid":
-        shape_valid = [ret.shape[a] if a not in axes else s1[a] - s2[a] + 1
-                       for a in range(ret.ndim)]
-        return _centered(ret, shape_valid).copy()
-    else:
-        raise ValueError("acceptable mode flags are 'valid',"
-                         " 'same', or 'full'")
 
 
 def fftconvolve(in1, in2, mode="full", axes=None):
@@ -339,6 +128,8 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     >>> fig.show()
 
     """
+    assert(mode == 'same')
+
     in1 = np.asarray(in1)
     in2 = np.asarray(in2)
 
@@ -349,15 +140,27 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     elif in1.size == 0 or in2.size == 0:  # empty arrays
         return np.array([])
 
-    in1, in2, axes = _init_freq_conv_axes(in1, in2, mode, axes,
-                                          sorted_axes=False)
+    axes = [0, 1]
 
-    s1 = in1.shape
-    s2 = in2.shape
+    shape = [in1.shape[0] + in2.shape[0] - 1,
+             in1.shape[1] + in2.shape[1] - 1]
 
-    shape = [max((s1[i], s2[i])) if i not in axes else s1[i] + s2[i] - 1
-             for i in range(in1.ndim)]
+    ##############
 
-    ret = _freq_domain_conv(in1, in2, axes, shape, calc_fast_len=True)
+    # Speed up FFT by padding to optimal size.
+    fshape = [
+        sp_fft.next_fast_len(shape[a], True) for a in axes]
 
-    return _apply_conv_mode(ret, s1, s2, mode, axes)
+    fft, ifft = sp_fft.rfftn, sp_fft.irfftn
+
+    sp1 = fft(in1, fshape, axes=axes)
+    sp2 = fft(in2, fshape, axes=axes)
+
+    ret = ifft(sp1 * sp2, fshape, axes=axes)
+
+    fslice = tuple([slice(sz) for sz in shape])
+    ret = ret[fslice]
+
+    ##############
+
+    return _centered(ret, in1.shape).copy()
