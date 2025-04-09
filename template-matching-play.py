@@ -5,7 +5,8 @@ import numpy as np
 from normxcorr2 import normxcorr2
 from normxcorr2_fewer_ffts import normxcorr2_fewer_ffts
 from scipy.signal import fftconvolve
-from myfftconvolve import myfftconvolve
+from myfftconvolve import myfftconvolve, myfftconvolve2
+from scikit_fftconvolve import fftconvolve as skfftconvolve
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -27,14 +28,14 @@ else:
 image = plt.imread(IMAGE_FILE)
 templ = plt.imread(TEMPL_FILE)
 
-image = cv.resize(image, (0, 0), fx=0.5, fy=0.5)
-templ = cv.resize(templ, (0, 0), fx=0.5, fy=0.5)
+# image = cv.resize(image, (0, 0), fx=0.5, fy=0.5)
+# templ = cv.resize(templ, (0, 0), fx=0.5, fy=0.5)
 
-def rgb2gray(rgb):
-    return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+# def rgb2gray(rgb):
+#     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
 
-image = rgb2gray(image)
-templ = rgb2gray(templ)
+# image = rgb2gray(image)
+# templ = rgb2gray(templ)
 
 print("image", image.shape)
 print("templ", templ.shape)
@@ -55,13 +56,21 @@ def impl_normxcorr2_fewer_ffts():
 def impl_normxcorr2_myfftconvolve():
     return normxcorr2(templ, image, fftconvolve=myfftconvolve, mode="same")
 
+def impl_normxcorr2_myfftconvolve2():
+    return normxcorr2(templ, image, fftconvolve=myfftconvolve2, mode="same")
+
+def impl_normxcorr2_skfftconvolve():
+    return normxcorr2(templ, image, fftconvolve=skfftconvolve, mode="same")
+
 results = []
 def run(impl):
     start_time = time.time()
     result = impl()
     elapsed = time.time() - start_time
+    print("------------")
     print("%s [%s sec]" % (impl.__name__, elapsed))
-    print(result.dtype, result.shape)
+    print("result:", result.dtype, result.shape)
+    print("argmax(result):", np.unravel_index(np.argmax(result), result.shape), np.max(result))
     results.append((impl.__name__, result, elapsed))
 
     print()
@@ -84,10 +93,12 @@ def done():
     plt.tight_layout()
     plt.show()
 
-run(impl_cvMatchTemplate)
-run(impl_skimage)
-# run(impl_normxcorr2)
+# run(impl_cvMatchTemplate)
+# run(impl_skimage)
+run(impl_normxcorr2)
 # run(impl_normxcorr2_fewer_ffts)
-# run(impl_normxcorr2_myfftconvolve)
+run(impl_normxcorr2_myfftconvolve)
+run(impl_normxcorr2_myfftconvolve2)
+run(impl_normxcorr2_skfftconvolve)
 
 done()
