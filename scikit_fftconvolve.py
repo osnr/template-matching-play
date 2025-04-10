@@ -128,12 +128,10 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     ]
     print(fshape)
 
-    fft, ifft = sp_fft.rfftn, sp_fft.irfftn
+    sp1 = sp_fft.rfft2(in1, fshape, axes=axes)
+    sp2 = sp_fft.rfft2(in2, fshape, axes=axes)
 
-    sp1 = fft(in1, fshape, axes=axes)
-    sp2 = fft(in2, fshape, axes=axes)
-
-    ret = ifft(sp1 * sp2, fshape, axes=axes)
+    ret = sp_fft.irfft2(sp1 * sp2, fshape, axes=axes)
 
     ret = ret[:shape[0], :shape[1]]
 
