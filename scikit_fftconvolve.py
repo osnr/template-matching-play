@@ -5,16 +5,6 @@ from scipy import fft as sp_fft
 import numpy as np
 
 
-def _centered(arr, newshape):
-    # Return the center newshape portion of the array.
-    newshape = np.asarray(newshape)
-    currshape = np.array(arr.shape)
-    startind = (currshape - newshape) // 2
-    endind = startind + newshape
-    myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
-    return arr[tuple(myslice)]
-
-
 def fftconvolve(in1, in2, mode="full", axes=None):
     """Convolve two N-dimensional arrays using FFT.
 
@@ -145,9 +135,14 @@ def fftconvolve(in1, in2, mode="full", axes=None):
 
     ret = ifft(sp1 * sp2, fshape, axes=axes)
 
-    fslice = tuple([slice(sz) for sz in shape])
-    ret = ret[fslice]
+    ret = ret[:shape[0], :shape[1]]
 
     ##############
 
-    return _centered(ret, in1.shape).copy()
+    # Return the center newshape portion of the array.
+    newshape = np.asarray(in1.shape)
+    currshape = np.array(ret.shape)
+    startind = (currshape - newshape) // 2
+    endind = startind + newshape
+    myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
+    return ret[tuple(myslice)].copy()
