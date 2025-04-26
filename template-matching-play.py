@@ -6,7 +6,7 @@ from normxcorr2 import normxcorr2
 from normxcorr2_fewer_ffts import normxcorr2_fewer_ffts
 from scipy.signal import fftconvolve
 from myfftconvolve import myfftconvolve, myfftconvolve2
-from scikit_fftconvolve import fftconvolve as skfftconvolve
+from scikit_fftconvolve import fftconvolve as skfftconvolve, fftconvolve_pow2 as skfftconvolve_pow2
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -61,14 +61,17 @@ def impl_normxcorr2_myfftconvolve2():
 
 def impl_normxcorr2_skfftconvolve():
     return normxcorr2(templ, image, fftconvolve=skfftconvolve, mode="same")
+def impl_normxcorr2_skfftconvolve_pow2():
+    return normxcorr2(templ, image, fftconvolve=skfftconvolve_pow2, mode="same")
 
 results = []
 def run(impl):
     start_time = time.time()
     result = impl()
     elapsed = time.time() - start_time
-    print("------------")
+    print("")
     print("%s [%s sec]" % (impl.__name__, elapsed))
+    print("------------")
     print("result:", result.dtype, result.shape)
     print("argmax(result):", np.unravel_index(np.argmax(result), result.shape), np.max(result))
     results.append((impl.__name__, result, elapsed))
@@ -100,5 +103,6 @@ run(impl_normxcorr2)
 # run(impl_normxcorr2_myfftconvolve)
 # run(impl_normxcorr2_myfftconvolve2)
 run(impl_normxcorr2_skfftconvolve)
+run(impl_normxcorr2_skfftconvolve_pow2)
 
 done()

@@ -4,8 +4,10 @@
 from scipy import fft as sp_fft
 import numpy as np
 
+def fftconvolve_pow2(in1, in2, mode="full"):
+    return fftconvolve(in1, in2, mode=mode, use_pow2=True)
 
-def fftconvolve(in1, in2, mode="full", axes=None):
+def fftconvolve(in1, in2, mode="full", use_pow2=False):
     """Convolve two N-dimensional arrays using FFT.
 
     Convolve `in1` and `in2` using the fast Fourier transform method, with
@@ -120,12 +122,21 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     
     # Speed up FFT by padding to optimal size.
     print("shape", shape)
-    fshape = [
-        # (2 ** np.ceil(np.log2(shape[0]))).astype(int),
-        # (2 ** np.ceil(np.log2(shape[1]))).astype(int)
+    fshape_pow2 = [
+        (2 ** np.ceil(np.log2(shape[0]))).astype(int),
+        (2 ** np.ceil(np.log2(shape[1]))).astype(int)
+    ]
+    print("fshape_pow2", fshape_pow2)
+    fshape_nextfast = [
         sp_fft.next_fast_len(shape[0], True),
         sp_fft.next_fast_len(shape[1], True)
     ]
+    print("fshape_nextfast", fshape_nextfast)
+
+    if use_pow2:
+        fshape = fshape_pow2
+    else:
+        fshape = fshape_nextfast
     print("fshape", fshape)
 
     sp1 = sp_fft.rfft2(in1, fshape)
@@ -137,6 +148,7 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     print("irfft2 (sp1*sp2) -> ret: ", (sp1 * sp2).shape, ret.shape)
 
     ret = ret[:shape[0], :shape[1]]
+    # save_ret_image(ret)
 
     ##############
 
@@ -148,5 +160,20 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
     
     ret = ret[tuple(myslice)].copy()
-    print("ret: ", ret.shape, np.sum(ret))
+    print("ret.shape=", ret.shape, "sum(ret)=", np.sum(ret), "mean(ret)=", np.mean(ret))
     return ret
+
+import uuid
+import matplotlib.pyplot as plt
+
+def save_ret_image(ret):
+    filename = f"{uuid.uuid4()}.png"
+    plt.figure(figsize=(10, 10))
+    plt.imshow(ret, cmap='viridis')
+    plt.colorbar()
+    plt.title('FFT Convolution Result')
+    plt.tight_layout()
+    plt.savefig(filename)
+    plt.close()
+    print(f"Image saved as: {filename}")
+    return filename
