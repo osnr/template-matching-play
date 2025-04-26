@@ -111,27 +111,30 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     elif in1.size == 0 or in2.size == 0:  # empty arrays
         return np.array([])
 
-    axes = [0, 1]
-
     shape = [in1.shape[0] + in2.shape[0] - 1,
              in1.shape[1] + in2.shape[1] - 1]
 
     ##############
 
+    print("++++++++++++++")
+    
     # Speed up FFT by padding to optimal size.
     print("shape", shape)
     fshape = [
-        # 2 ** np.ceil(np.log2(shape[0])).astype(int),
-        # 2 ** np.ceil(np.log2(shape[1])).astype(int)
+        # (2 ** np.ceil(np.log2(shape[0]))).astype(int),
+        # (2 ** np.ceil(np.log2(shape[1]))).astype(int)
         sp_fft.next_fast_len(shape[0], True),
         sp_fft.next_fast_len(shape[1], True)
     ]
-    print(fshape)
+    print("fshape", fshape)
 
-    sp1 = sp_fft.rfft2(in1, fshape, axes=axes)
-    sp2 = sp_fft.rfft2(in2, fshape, axes=axes)
+    sp1 = sp_fft.rfft2(in1, fshape)
+    print("rfft2 in1->sp1: ", in1.shape, sp1.shape)
+    sp2 = sp_fft.rfft2(in2, fshape)
+    print("rfft2 in2->sp2: ", in2.shape, sp2.shape)
 
-    ret = sp_fft.irfft2(sp1 * sp2, fshape, axes=axes)
+    ret = sp_fft.irfft2(sp1 * sp2, fshape)
+    print("irfft2 (sp1*sp2) -> ret: ", (sp1 * sp2).shape, ret.shape)
 
     ret = ret[:shape[0], :shape[1]]
 
@@ -143,4 +146,7 @@ def fftconvolve(in1, in2, mode="full", axes=None):
     startind = (currshape - newshape) // 2
     endind = startind + newshape
     myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
-    return ret[tuple(myslice)].copy()
+    
+    ret = ret[tuple(myslice)].copy()
+    print("ret: ", ret.shape, np.sum(ret))
+    return ret
