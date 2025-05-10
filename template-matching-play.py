@@ -28,14 +28,16 @@ else:
 image = plt.imread(IMAGE_FILE)
 templ = plt.imread(TEMPL_FILE)
 
-# image = cv.resize(image, (0, 0), fx=0.5, fy=0.5)
-# templ = cv.resize(templ, (0, 0), fx=0.5, fy=0.5)
+if image.shape[-1] == 4 and templ.shape[-1] == 4:
+    print("rgba")
+    image = cv.resize(image, (0, 0), fx=0.5, fy=0.5)
+    templ = cv.resize(templ, (0, 0), fx=0.5, fy=0.5)
 
-# def rgb2gray(rgb):
-#     return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
+    def rgb2gray(rgb):
+        return np.dot(rgb[...,:3], [0.2989, 0.5870, 0.1140])
 
-# image = rgb2gray(image)
-# templ = rgb2gray(templ)
+    image = rgb2gray(image)
+    templ = rgb2gray(templ)
 
 print("image", image.shape)
 print("templ", templ.shape)
