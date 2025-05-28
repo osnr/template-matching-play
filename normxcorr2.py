@@ -11,7 +11,7 @@
 ########################################################################################
 
 import numpy as np
-
+import inspect
 
 def normxcorr2(template, image, fftconvolve, mode="full"):
     """
@@ -27,6 +27,8 @@ def normxcorr2(template, image, fftconvolve, mode="full"):
     same: The output is the same size as image, centered with respect to the ‘full’ output.
     :return: N-D array of same dimensions as image. Size depends on mode parameter.
     """
+
+    inspect.getmodule(fftconvolve).fftconvolve_results = []
 
     # If this happens, it is probably a mistake
     if np.ndim(template) > np.ndim(image) or \

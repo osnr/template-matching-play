@@ -7,6 +7,7 @@ from normxcorr2_fewer_ffts import normxcorr2_fewer_ffts
 from scipy.signal import fftconvolve
 from myfftconvolve import myfftconvolve, myfftconvolve2
 from scikit_fftconvolve import fftconvolve as skfftconvolve, fftconvolve_pow2 as skfftconvolve_pow2
+import scikit_fftconvolve
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -76,14 +77,39 @@ def run(impl):
     print("------------")
     print("result:", result.dtype, result.shape)
     print("argmax(result):", np.unravel_index(np.argmax(result), result.shape), np.max(result))
-    results.append((impl.__name__, result, elapsed))
+    results.append((impl.__name__, result, elapsed, scikit_fftconvolve.fftconvolve_results))
 
     print()
 
+authorityconvolves = [None]*20
+authority = None
 def done():
-    fig, axs = plt.subplots(len(results), 2)
-    for i, (impl_name, result, elapsed) in enumerate(results):
-        axs[i, 0].imshow(result)
+    fig, axs = plt.subplots(len(results), 11)
+    for i, (impl_name, result, elapsed, fftconvolves) in enumerate(results):
+        global authorityconvolves
+        if not fftconvolves is None:
+            print(impl_name, len(fftconvolves))
+            for j in range(len(fftconvolves)):
+                if authorityconvolves[j] is None:
+                    authorityconvolves[j] = fftconvolves[j]
+                    axs[i, 2 + j].imshow(np.real(fftconvolves[j]))
+                else:
+                    # axs[i, 2 + j].imshow(np.real(fftconvolves[j] - authorityconvolves[j]))
+                    axs[i, 2 + j].imshow(np.real(fftconvolves[j]))
+
+        global authority
+        if authority is None:
+            authority = result
+            axs[i, 0].imshow(result)
+        else:
+            diff = result - authority
+            max_val = diff.max()
+            min_val = diff.min()
+            max_loc = np.unravel_index(diff.argmax(), diff.shape)
+            min_loc = np.unravel_index(diff.argmin(), diff.shape)
+            print(f"{impl_name} Diff max: {max_val} at location {max_loc}, Diff min: {min_val} at location {min_loc}")
+            # axs[i, 0].imshow(diff)
+            axs[i, 0].imshow(result)
         axs[i, 1].imshow(image)
 
         peaks = np.argwhere(result > 0.9)

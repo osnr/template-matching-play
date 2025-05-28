@@ -7,6 +7,7 @@ import numpy as np
 def fftconvolve_pow2(in1, in2, mode="full"):
     return fftconvolve(in1, in2, mode=mode, use_pow2=True)
 
+fftconvolve_results = None
 def fftconvolve(in1, in2, mode="full", use_pow2=False):
     """Convolve two N-dimensional arrays using FFT.
 
@@ -139,13 +140,25 @@ def fftconvolve(in1, in2, mode="full", use_pow2=False):
         fshape = fshape_nextfast
     print("fshape", fshape)
 
+    global fftconvolve_results
+
     sp1 = sp_fft.rfft2(in1, fshape)
-    print("rfft2 in1->sp1: ", in1.shape, sp1.shape)
+    print("rfft2 in1->sp1: ", in1.shape, sp1.shape, sp1.dtype)
+    fftconvolve_results.append(sp1)
     sp2 = sp_fft.rfft2(in2, fshape)
-    print("rfft2 in2->sp2: ", in2.shape, sp2.shape)
+    print("rfft2 in2->sp2: ", in2.shape, sp2.shape, sp2.dtype)
+    fftconvolve_results.append(sp2)
 
     ret = sp_fft.irfft2(sp1 * sp2, fshape)
-    print("irfft2 (sp1*sp2) -> ret: ", (sp1 * sp2).shape, ret.shape)
+    print("irfft2 (sp1*sp2) -> ret: ", (sp1 * sp2).shape, ret.shape, ret.dtype)
+
+    # Because of how irfft2 works, ret has been scaled by 1/n, where n
+    # is the number of data points. Now reverse the scaling:
+    n = np.product(fshape)
+    ret = ret * n
+    # Now apply a scaling by the cropped number of points instead:
+    n_cropped = shape[0] * shape[1]
+    ret = ret * (1.0 / n_cropped)
 
     ret = ret[:shape[0], :shape[1]]
     # save_ret_image(ret)
@@ -160,7 +173,17 @@ def fftconvolve(in1, in2, mode="full", use_pow2=False):
     myslice = [slice(startind[k], endind[k]) for k in range(len(endind))]
     
     ret = ret[tuple(myslice)].copy()
+    # save_ret_image(ret)
     print("ret.shape=", ret.shape, "sum(ret)=", np.sum(ret), "mean(ret)=", np.mean(ret))
+
+    # if len(fftconvolve_results) == 0:
+    #     # TODO: spit ret and inputs out into images somewhere so we
+    #     # can isolatedly test them
+    #     # this first call shoudl be `fftconvolve(image, ar.conj(), mode=mode)`
+    #     # save in1 to in1-UUID file
+    #     # save in2 to in2-UUID file
+    #     # save ret to ret-UUID file
+    fftconvolve_results.append(ret)
     return ret
 
 import uuid
