@@ -81,13 +81,14 @@ def run(impl):
 
     print()
 
+show_intermediates = False
 authorityconvolves = [None]*20
 authority = None
 def done():
-    fig, axs = plt.subplots(len(results), 11)
+    fig, axs = plt.subplots(len(results), 11 if show_intermediates else 2)
     for i, (impl_name, result, elapsed, fftconvolves) in enumerate(results):
         global authorityconvolves
-        if not fftconvolves is None:
+        if show_intermediates and (not fftconvolves is None):
             print(impl_name, len(fftconvolves))
             for j in range(len(fftconvolves)):
                 if authorityconvolves[j] is None:
